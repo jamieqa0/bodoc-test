@@ -16,14 +16,14 @@ class HealthPage(BasePage):
         if ss_func:
             shot = ss_func("HealthTab_Entry")
             if reporter:
-                reporter.step("건강 탭 진입 확인", "PASSED", shot)
+                reporter.step("건강 탭 진입", "PASSED", shot)
 
     def verify_elements(self, ss_func=None, reporter=None):
         TARGET_TEXT = "건강 기록"
         TARGET_XPATH = "//*[contains(@text,'건강 기록')]"
 
         if reporter:
-            reporter.step(f"스크롤하며 타이틀 탐색: {TARGET_TEXT}")
+            reporter.step(f"'{TARGET_TEXT}' 탐색 중")
 
         # 타이틀이 보일 때까지 스크롤
         self.scroll_to_text("건강 기록")
@@ -32,11 +32,11 @@ class HealthPage(BasePage):
             self.wait_for_element(TARGET_XPATH, timeout=7)
             print(f"[OK] 타이틀 확인: {TARGET_TEXT}")
             if reporter:
-                reporter.step(f"타이틀 노출 확인: {TARGET_TEXT}", "PASSED")
+                reporter.step(f"'{TARGET_TEXT}' 노출 확인", "PASSED")
             if ss_func:
                 shot = ss_func("S6_Elem_Health_Record")
                 if reporter:
-                    reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
+                    reporter.step(f"{TARGET_TEXT} 스크린샷", "PASSED", shot)
         except Exception:
             if ss_func:
                 ss_func("S6_FAIL_Health_Record")

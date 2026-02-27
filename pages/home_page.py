@@ -21,23 +21,23 @@ class HomePage(BasePage):
             ("Insurance_Diagnosis", "보험 종합진단", "//*[contains(@text,'보험 종합진단')]", False),
             ("Monthly_Premium", "매월 내는 보험료", "//*[contains(@text,'매월 내는 보험료')]", False),
         ]
-        
+
         for eng_id, kor_name, xpath, needs_scroll in checks:
             try:
                 if needs_scroll:
                     self.scroll_to_text(kor_name)
-                
+
                 self.wait_for_element(xpath, timeout=5)
                 print(f"[OK] 요소 확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "PASSED")
+                    reporter.step(f"'{kor_name}' 노출 확인", "PASSED")
                     if ss_func:
                         shot = ss_func(f"S3_Elem_{eng_id}")
-                        reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+                        reporter.step(f"{kor_name} 스크린샷", "PASSED", shot)
             except Exception:
                 print(f"[WARN] 요소 미확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "FAILED")
+                    reporter.step(f"'{kor_name}' 미발견", "FAILED")
 
         # 2. 하단에 위치하거나 보험 리스트 너머에 있는 요소들 (스크롤하며 확인)
         bottom_checks = [
@@ -45,23 +45,22 @@ class HomePage(BasePage):
             ("Consult_Adjuster", "손해사정사", "//*[contains(@text,'손해사정사')]"),
             ("Add_Insurance_Btn", "내 보험 추가", "//*[contains(@text,'내 보험 추가') or contains(@text,'보험 추가')]"),
         ]
-        
+
         for eng_id, kor_name, xpath in bottom_checks:
             try:
-                # UiScrollable 로직으로 대상을 찾을 때까지 스크롤
                 self.scroll_to_text(kor_name)
-                
+
                 self.wait_for_element(xpath, timeout=3)
                 print(f"[OK] 하단 요소 확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"하단 요소 확인: {kor_name}", "PASSED")
+                    reporter.step(f"'{kor_name}' 노출 확인 (하단)", "PASSED")
                     if ss_func:
                         shot = ss_func(f"S3_Elem_Bottom_{eng_id}")
-                        reporter.step(f"스크린샷: {kor_name} (하단)", "PASSED", shot)
+                        reporter.step(f"{kor_name} 스크린샷 (하단)", "PASSED", shot)
             except Exception:
                 print(f"[WARN] 하단 요소 미확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"하단 요소 확인: {kor_name}", "FAILED")
+                    reporter.step(f"'{kor_name}' 미발견 (하단)", "FAILED")
 
     def scroll_to_bottom(self, ss_func=None, reporter=None):
         self.scroll_down(2)

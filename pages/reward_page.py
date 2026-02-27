@@ -16,7 +16,7 @@ class RewardPage(BasePage):
         if ss_func:
             shot = ss_func("RewardTab_Entry")
             if reporter:
-                reporter.step("보상 탭 진입 확인", "PASSED", shot)
+                reporter.step("보상 탭 진입", "PASSED", shot)
 
     def verify_elements(self, ss_func=None, reporter=None):
         TARGET_TEXT = "유형별 보상 사례 / 자주 묻는 보상 질문"
@@ -31,7 +31,7 @@ class RewardPage(BasePage):
         )
 
         if reporter:
-            reporter.step(f"스크롤하며 타이틀 탐색: {TARGET_TEXT}")
+            reporter.step(f"'{TARGET_TEXT}' 탐색 중")
 
         # 두 키워드 중 먼저 찾히는 쪽으로 스크롤
         self.scroll_to_text("보상 사례")
@@ -40,11 +40,11 @@ class RewardPage(BasePage):
             self.wait_for_element(TARGET_XPATH, timeout=7)
             print(f"[OK] 타이틀 확인: {TARGET_TEXT}")
             if reporter:
-                reporter.step(f"타이틀 노출 확인: {TARGET_TEXT}", "PASSED")
+                reporter.step(f"'{TARGET_TEXT}' 노출 확인", "PASSED")
             if ss_func:
                 shot = ss_func("S7_Elem_Reward_Case")
                 if reporter:
-                    reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
+                    reporter.step(f"{TARGET_TEXT} 스크린샷", "PASSED", shot)
         except Exception:
             if ss_func:
                 ss_func("S7_FAIL_Reward_Case")

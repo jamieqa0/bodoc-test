@@ -13,7 +13,7 @@ class DiagnosisPage(BasePage):
         if ss_func:
             shot = ss_func("DiagnosisTab_Entry")
             if reporter:
-                reporter.step("진단탭 진입", "PASSED", shot)
+                reporter.step("진단 탭 진입", "PASSED", shot)
 
     def verify_diagnosis_elements(self, ss_func=None, reporter=None):
         # (영문ID, 한글명, XPath)
@@ -26,26 +26,26 @@ class DiagnosisPage(BasePage):
                 self.wait_for_element(xpath, timeout=5)
                 print(f"[OK] 요소 확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "PASSED")
+                    reporter.step(f"'{kor_name}' 노출 확인", "PASSED")
                     if ss_func:
                         shot = ss_func(f"S4_Elem_{eng_id}")
-                        reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+                        reporter.step(f"스크린샷 저장 — {kor_name}", "PASSED", shot)
             except Exception:
                 print(f"[WARN] 요소 미확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "FAILED")
+                    reporter.step(f"'{kor_name}' 미발견", "FAILED")
 
     def scroll_to_bottom(self, ss_func=None, reporter=None):
         self.scroll_down(2)
         if ss_func:
             shot = ss_func("S4_Scroll_Diagnosis_Mid")
             if reporter:
-                reporter.step("진단 스크롤 (중간)", "PASSED", shot)
+                reporter.step("진단 탭 스크롤 (중간)", "PASSED", shot)
         self.scroll_down(2)
         if ss_func:
             shot = ss_func("S4_Scroll_Diagnosis_Bottom")
             if reporter:
-                reporter.step("진단 스크롤 (하단)", "PASSED", shot)
+                reporter.step("진단 탭 스크롤 (하단)", "PASSED", shot)
 
     def verify_insurance_premium(self, ss_func=None, reporter=None):
         """'내 보험료' 탭으로 이동하여 보험료 금액이 표시되는지 확인"""
@@ -79,19 +79,19 @@ class DiagnosisPage(BasePage):
             self.wait_for_element(PREMIUM_TITLE, timeout=5)
             print("[OK] '매월 내는 보험료' 타이틀 확인")
             if reporter:
-                reporter.step("'매월 내는 보험료' 타이틀 확인", "PASSED")
-            
+                reporter.step("'매월 내는 보험료' 타이틀 노출 확인", "PASSED")
+
             val_el = self.wait_for_element(PREMIUM_VALUE, timeout=5)
             amount_text = val_el.text
             print(f"[OK] 보험료 금액 확인됨: {amount_text}")
-            
+
             if reporter:
-                reporter.step(f"보험료 금액 확인: {amount_text}", "PASSED")
+                reporter.step(f"월 보험료 금액 확인: {amount_text}", "PASSED")
                 if ss_func:
                     shot = ss_func("S4_Premium_Amount_Check")
-                    reporter.step("보험료 금액 스크린샷", "PASSED", shot)
+                    reporter.step("월 보험료 스크린샷", "PASSED", shot)
         except Exception as e:
             print(f"[FAIL] 보험료 정보 미확인: {e}")
             if reporter:
-                reporter.step("보험료 정보 확인 실패", "FAILED")
+                reporter.step("월 보험료 금액 미발견", "FAILED")
             raise e

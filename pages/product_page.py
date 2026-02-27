@@ -19,7 +19,7 @@ class ProductPage(BasePage):
         TARGET_XPATH = "//*[contains(@text,'보닥 회원만을 위한 추천 상품')]"
 
         if reporter:
-            reporter.step(f"스크롤하며 타이틀 탐색: {TARGET_TEXT}")
+            reporter.step(f"'{TARGET_TEXT}' 탐색 중")
 
         # 타이틀이 보일 때까지 스크롤
         self.scroll_to_text("보닥 회원만을 위한 추천 상품")
@@ -28,11 +28,11 @@ class ProductPage(BasePage):
             self.wait_for_element(TARGET_XPATH, timeout=7)
             print(f"[OK] 타이틀 확인: {TARGET_TEXT}")
             if reporter:
-                reporter.step(f"타이틀 노출 확인: {TARGET_TEXT}", "PASSED")
+                reporter.step(f"'{TARGET_TEXT}' 노출 확인", "PASSED")
             if ss_func:
                 shot = ss_func("S5_Elem_Recommend_Title")
                 if reporter:
-                    reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
+                    reporter.step(f"{TARGET_TEXT} 스크린샷", "PASSED", shot)
         except Exception:
             if ss_func:
                 ss_func("S5_FAIL_Recommend_Title")

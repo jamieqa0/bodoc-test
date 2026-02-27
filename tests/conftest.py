@@ -102,6 +102,28 @@ def reporter(run_id):
     _save_once()                  # 정상 종료 시 즉시 저장
 
 
+# ── 디바이스 정보 리포터에 주입 ───────────────────────────────
+@pytest.fixture(scope="session", autouse=True)
+def inject_device_info(driver_setup, reporter):
+    import subprocess, shutil
+    caps = driver_setup.capabilities
+    udid = (caps.get('udid') or caps.get('deviceUDID')
+            or CAPABILITIES.get('deviceName', ''))
+    version = caps.get('platformVersion', '')
+    # capabilities에 모델명이 없는 경우가 많으므로 adb로 직접 조회
+    model = caps.get('deviceModel', '')
+    try:
+        adb = shutil.which('adb') or 'adb'
+        model = subprocess.check_output(
+            [adb, '-s', udid, 'shell', 'getprop', 'ro.product.model'],
+            encoding='utf-8', errors='replace', timeout=5
+        ).strip()
+    except Exception:
+        pass
+    print(f"[INFO] 실행 디바이스: {model} / Android {version} / {udid}")
+    reporter.set_device(model=model, version=version, udid=udid)
+
+
 # ── #2: 시나리오 컨텍스트 매니저 ─────────────────────────────
 @contextmanager
 def scenario_context(reporter, name, ss, fail_prefix):

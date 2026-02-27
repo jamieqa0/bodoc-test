@@ -512,17 +512,6 @@ def _extract_scenarios():
 if __name__ == '__main__':
     print(f'Bodoc QA Dashboard -> http://localhost:{PORT}')
     print('   Ctrl+C to stop')
-    
-    # 서버 시작 시 시나리오 확인
-    scs, err = _extract_scenarios()
-    if err:
-        print(f'   [!] 시나리오 로드 실패: {err}')
-    else:
-        print(f'   [OK] {len(scs)}개의 테스트 시나리오를 찾았습니다.')
-        for s in scs:
-            print(f'        - S{s["id"]}: {s["name"]}')
-            
-    print('   [v2] Appium 자동경로 탐색 활성화')
     try:
         ThreadingHTTPServer(('', PORT), Handler).serve_forever()
     except KeyboardInterrupt:

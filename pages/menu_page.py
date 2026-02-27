@@ -57,7 +57,7 @@ class MenuPage(BasePage):
         """전체 메뉴 스크롤 후 5개 섹션 타이틀 노출 확인"""
         for eng_id, kor_name, scroll_keyword, xpath, extra_scrolls in self.SECTION_CHECKS:
             if reporter:
-                reporter.step(f"섹션 탐색 중: {kor_name}")
+                reporter.step(f"'{kor_name}' 섹션 탐색 중")
 
             # 항목에 따라 추가 스크롤 먼저 수행
             if extra_scrolls:
@@ -69,11 +69,11 @@ class MenuPage(BasePage):
             try:
                 self.wait_for_element(xpath, timeout=7)
                 if reporter:
-                    reporter.step(f"섹션 타이틀 노출 확인: {kor_name}", "PASSED")
+                    reporter.step(f"'{kor_name}' 노출 확인", "PASSED")
                 if ss_func:
                     shot = ss_func(f"S8_Section_{eng_id}")
                     if reporter:
-                        reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+                        reporter.step(f"{kor_name} 섹션 스크린샷", "PASSED", shot)
             except Exception:
                 if ss_func:
                     ss_func(f"S8_FAIL_Section_{eng_id}")

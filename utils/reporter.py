@@ -283,6 +283,14 @@ let _isRunning = false;
 let _runningID = null;
 
 function esc(str) { return str ? str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : ""; }
+function renderDevice(d) {
+    if (!d || (!d.model && !d.udid)) return '';
+    let s = '<div style="font-size:11px; color:#888; margin-top:3px;">디바이스: <b>' + esc(d.model || d.udid) + '</b>';
+    if (d.version) s += ' | Android ' + esc(d.version);
+    if (d.model && d.udid) s += ' | ' + esc(d.udid);
+    s += '</div>';
+    return s;
+}
 
 async function api(path) {
     try {
@@ -333,60 +341,79 @@ async function refreshDashboard() {
 }
 
 async function updateStatus() {
-    const s = await api('/api/appium/status');
-    const d = await api('/api/device/status');
-    const t = await api('/api/test/status');
+    const [s, d, t] = await Promise.all([
+        api('/api/appium/status'),
+        api('/api/device/status'),
+        api('/api/test/status')
+    ]);
 
+    if(t) { _isRunning = t.running; _runningID = t.current_scenario; }
+
+    // 시스템 상태 — 항상 가장 먼저 업데이트
+    const dashSys = document.getElementById('dash-sys-status');
+    if(dashSys) dashSys.innerHTML =
+        'Appium 서버: <b style="color:' + (s&&s.running?'var(--success)':'var(--danger)') + '">' + (s&&s.running?'작동 중':'중지됨') + '</b><br>' +
+        '연결 기기: <b>' + (d?d.count:'0') + '</b>대<br>' +
+        '테스트 상태: ' + (_isRunning?'<b style="color:var(--warning)">진행 중...</b>':'<b style="color:#888">대기</b>');
+
+    // 설정 탭 — Appium 상태
     if(s) {
         const adot = document.getElementById('appium-dot');
         const atxt = document.getElementById('appium-text');
-        if(s.running) { adot.className='dot on'; atxt.textContent='온라인 (v'+s.version+')'; }
-        else { adot.className='dot off'; atxt.textContent='오프라인'; }
+        if(adot) adot.className = s.running ? 'dot on' : 'dot off';
+        if(atxt) atxt.textContent = s.running ? '온라인 (v'+s.version+')' : '오프라인';
     }
 
+    // 설정 탭 — 디바이스 상태
     if(d) {
         const ddot = document.getElementById('device-dot');
         const dtxt = document.getElementById('device-text');
-        if(d.count > 0) { ddot.className='dot on'; dtxt.textContent=d.count+'대 연결됨'; document.getElementById('device-list').innerHTML = d.devices.join('<br>'); }
-        else { ddot.className='dot off'; dtxt.textContent='연결된 기기 없음'; document.getElementById('device-list').innerHTML = ''; }
-    }
-
-    if(t) {
-        _isRunning = t.running;
-        _runningID = t.current_scenario;
-        document.getElementById('btn-stop-test').disabled = !_isRunning;
-        document.getElementById('btn-run-all').disabled = _isRunning;
-
-        // 진행 상태 표시 강화
-        const badge = document.getElementById('badge-area');
-        if(_isRunning) {
-            let prog = '진행 중...';
-            if(t.total_count > 0) {
-                const cur = t.current_idx || 0;
-                prog = `시나리오 실행 중 (${cur}/${t.total_count})`;
-            }
-            badge.innerHTML = `<span class="badge" style="background:var(--warning); color:#fff; padding:6px 12px; font-size:12px; border-radius:20px; animation: pulse 2s infinite;">⏳ ${prog}</span>`;
+        const dlist = document.getElementById('device-list');
+        if(d.count > 0) {
+            if(ddot) ddot.className = 'dot on';
+            if(dtxt) dtxt.textContent = d.count + '대 연결됨';
+            if(dlist) dlist.innerHTML = d.devices.join('<br>');
         } else {
-            badge.innerHTML = '<span class="badge" style="background:#e2e8f0; color:#64748b; padding:6px 12px; font-size:12px; border-radius:20px;">💤 대기 중</span>';
+            if(ddot) ddot.className = 'dot off';
+            if(dtxt) dtxt.textContent = '연결된 기기 없음';
+            if(dlist) dlist.innerHTML = '';
         }
     }
-    
-    if(document.getElementById('pane-run').classList.contains('active')) {
-        document.querySelectorAll('.s-card').forEach(card => {
-            const id = card.getAttribute('data-id');
-            const btn = card.querySelector('.run-mini-btn');
-            if(_isRunning && (id === _runningID || _runningID === 'all')) {
-                card.classList.add('running'); btn.disabled = true;
-                btn.innerHTML = '<div class="spinner"></div> 실행중'; btn.classList.add('running');
-            } else {
-                card.classList.remove('running'); btn.disabled = _isRunning;
-                btn.innerHTML = 'Run'; btn.classList.remove('running');
-            }
-        });
-    }
 
-    const dashSys = document.getElementById('dash-sys-status');
-    if(dashSys) dashSys.innerHTML = `Appium 서버: <b style="color:${s&&s.running?'var(--success)':'var(--danger)'}">${s&&s.running?'작동 중':'중지됨'}</b><br>연결 기기: <b>${d?d.count:'0'}</b>대<br>테스트 상태: ${_isRunning?'<b style="color:var(--warning)">진행 중...</b>':'<b style="color:#888">대기</b>'}`;
+    // 실행 탭 — 버튼 상태 및 배지
+    if(t) {
+        const btnStop = document.getElementById('btn-stop-test');
+        const btnRun  = document.getElementById('btn-run-all');
+        if(btnStop) btnStop.disabled = !_isRunning;
+        if(btnRun)  btnRun.disabled  = _isRunning;
+
+        const badge = document.getElementById('badge-area');
+        if(badge) {
+            if(_isRunning) {
+                const cur = t.current_idx || 0;
+                const prog = t.total_count > 0 ? '시나리오 실행 중 (' + cur + '/' + t.total_count + ')' : '진행 중...';
+                badge.innerHTML = '<span class="badge" style="background:var(--warning);color:#fff;padding:6px 12px;font-size:12px;border-radius:20px;animation:pulse 2s infinite;">⏳ ' + prog + '</span>';
+            } else {
+                badge.innerHTML = '<span class="badge" style="background:#e2e8f0;color:#64748b;padding:6px 12px;font-size:12px;border-radius:20px;">💤 대기 중</span>';
+            }
+        }
+
+        const paneRun = document.getElementById('pane-run');
+        if(paneRun && paneRun.classList.contains('active')) {
+            document.querySelectorAll('.s-card').forEach(card => {
+                const id  = card.getAttribute('data-id');
+                const btn = card.querySelector('.run-mini-btn');
+                if(!btn) return;
+                if(_isRunning && (id === _runningID || _runningID === 'all')) {
+                    card.classList.add('running'); btn.disabled = true;
+                    btn.innerHTML = '<div class="spinner"></div> 실행중'; btn.classList.add('running');
+                } else {
+                    card.classList.remove('running'); btn.disabled = _isRunning;
+                    btn.innerHTML = 'Run'; btn.classList.remove('running');
+                }
+            });
+        }
+    }
 }
 
 async function renderScenarioGrid() {
@@ -505,6 +532,7 @@ function showReport(r, el) {
         <div class="report-header">
             <h2 style="font-size:20px;">실행 리포트 (Execution Report)</h2>
             <div style="font-size:11px; color:#888; margin-top:5px;">실행 ID: ${r.run_id} | 일시: ${r.date} ${r.time} ${r.duration ? ` | 총 소요시간: ${r.duration}초` : ''}</div>
+            ${renderDevice(r.device)}
             <div style="display:flex; gap:15px; margin-top:12px;">
                 <span style="font-size:13px">전체 시나리오: <b>${r.summary.total}</b></span>
                 <span style="font-size:13px; color:var(--success)">성공: <b>${r.summary.passed}</b></span>
@@ -568,9 +596,13 @@ class TestReporter:
             "date": datetime.now().strftime('%Y-%m-%d'),
             "time": datetime.now().strftime('%H:%M:%S'),
             "duration": 0,
+            "device": {},
             "scenarios": [],
             "summary": {"total": 0, "passed": 0, "failed": 0},
         }
+
+    def set_device(self, model='', version='', udid=''):
+        self.data["device"] = {"model": model, "version": version, "udid": udid}
 
     def start_scenario(self, name):
         self._current = {
