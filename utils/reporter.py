@@ -425,7 +425,17 @@ async function runTests(id) {
 async function stopTests() { if(confirm("현재 진행 중인 테스트를 강제 종료하시겠습니까?")) await api('/api/stop'); }
 
 async function loadResults() {
-    const data = await api('/api/results');
+    let data = await api('/api/results');
+    // API 호출 실패 시 (정적 HTML로 직접 열었을 경우 등) 내장된 데이터 사용
+    if(!data) {
+        try {
+            const raw = document.getElementById('reports-data').textContent;
+            if(raw && !raw.includes('__REPORTS_JSON__')) {
+                data = JSON.parse(raw);
+            }
+        } catch(e) {}
+    }
+    
     if(data) _results = data;
     const list = document.getElementById('run-list');
     if(!list) return;
@@ -595,7 +605,6 @@ class TestReporter:
 
     def save(self):
         self.data["duration"] = round(time.time() - self._start, 1)
-        if not self.data["scenarios"]: return
         os.makedirs(self.results_dir, exist_ok=True)
         json_path = os.path.join(self.results_dir, f"result_{self.run_id}.json")
         with open(json_path, "w", encoding="utf-8") as f:

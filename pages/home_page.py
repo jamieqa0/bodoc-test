@@ -8,6 +8,7 @@ class HomePage(BasePage):
     ADD_INSURANCE_BUTTON = "//*[contains(@text, '내 보험 추가하기') or contains(@text, '내 보험 추가')]"
 
     def go_home(self):
+        self.wait_for_home()
         try:
             self.click(self.HOME_TAB, "HomeTab_Move")
         except Exception:

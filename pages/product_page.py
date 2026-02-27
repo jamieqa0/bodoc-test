@@ -6,6 +6,7 @@ class ProductPage(BasePage):
     PRODUCT_TAB = "//*[@text='상품']"
 
     def go_product(self, ss_func=None, reporter=None):
+        self.wait_for_home()
         self.click(self.PRODUCT_TAB, "Move_To_Product_Tab")
         time.sleep(1)
         if ss_func:
@@ -14,17 +15,25 @@ class ProductPage(BasePage):
                 reporter.step("상품 탭 진입", "PASSED", shot)
 
     def verify_elements(self, ss_func=None, reporter=None):
-        checks = [
-            ("Product_Popular", "상품/랭킹", "//*[contains(@text,'상품') or contains(@text,'인기') or contains(@text,'랭킹')]"),
-            ("Product_Recommend", "보험/추천", "//*[contains(@text,'보험') or contains(@text,'추천') or contains(@text,'맞춤')]"),
-        ]
-        for eng_id, kor_name, xpath in checks:
+        TARGET_TEXT = "보닥 회원만을 위한 추천 상품"
+        TARGET_XPATH = "//*[contains(@text,'보닥 회원만을 위한 추천 상품')]"
+
+        if reporter:
+            reporter.step(f"스크롤하며 타이틀 탐색: {TARGET_TEXT}")
+
+        # 타이틀이 보일 때까지 스크롤
+        self.scroll_to_text("보닥 회원만을 위한 추천 상품")
+
+        try:
+            self.wait_for_element(TARGET_XPATH, timeout=7)
+            print(f"[OK] 타이틀 확인: {TARGET_TEXT}")
             if reporter:
-                reporter.step(f"요소 대기: {kor_name}")
-            self.wait_for_element(xpath, timeout=10)
-            print(f"[OK] 요소 확인: {kor_name}")
-            if reporter:
-                reporter.step(f"요소 확인 완료: {kor_name}", "PASSED")
-                if ss_func:
-                    shot = ss_func(f"S5_Elem_{eng_id}")
-                    reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+                reporter.step(f"타이틀 노출 확인: {TARGET_TEXT}", "PASSED")
+            if ss_func:
+                shot = ss_func("S5_Elem_Recommend_Title")
+                if reporter:
+                    reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
+        except Exception:
+            if ss_func:
+                ss_func("S5_FAIL_Recommend_Title")
+            raise AssertionError(f"타이틀을 찾을 수 없습니다: '{TARGET_TEXT}'")

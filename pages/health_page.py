@@ -6,11 +6,10 @@ class HealthPage(BasePage):
     HEALTH_TAB = "//*[@text='건강']"
 
     def go_health(self, ss_func=None, reporter=None):
-        # 하단 탭 영역의 '건강' 아이콘을 명시적으로 클릭 (텍스트가 다른 곳에도 있을 수 있음)
-        HEALTH_ICON = "//*[@text='건강' and (contains(@resource-id, 'tab') or contains(@resource-id, 'bottom'))]"
-        # 만약 resource-id가 없으면 그냥 text로 하되, 최하단 버튼임을 보장하기 위해 위치 기반으로 필터링하거나 그냥 텍스트 클릭 시도
-        if not _try_find(self.driver, HEALTH_ICON):
-            HEALTH_ICON = "//*[@text='건강']"
+        self.wait_for_home()
+        # 상품 탭 콘텐츠 안에 '건강' 텍스트 요소가 중복 존재할 수 있으므로
+        # [last()]로 DOM 순서상 마지막 요소(= 하단 탭바 아이콘)를 명시적으로 선택
+        HEALTH_ICON = "(//*[@text='건강' or @content-desc='건강'])[last()]"
 
         self.click(HEALTH_ICON, "Move_To_Health_Tab")
         time.sleep(1.5)
@@ -20,25 +19,26 @@ class HealthPage(BasePage):
                 reporter.step("건강 탭 진입 확인", "PASSED", shot)
 
     def verify_elements(self, ss_func=None, reporter=None):
-        checks = [
-            ("Health_Title", "검진 결과", "//*[contains(@text,'검진') or contains(@text,'진역') or contains(@text,'기록') or contains(@text, '결과')]"),
-            ("Health_Analysis", "건강 분석", "//*[contains(@text,'분석') or contains(@text,'카드') or contains(@text,'상태')]"),
-        ]
-        for eng_id, kor_name, xpath in checks:
-            if reporter:
-                reporter.step(f"요소 대기: {kor_name}")
-            self.wait_for_element(xpath, timeout=10)
-            print(f"[OK] 요소 확인: {kor_name}")
-            if reporter:
-                reporter.step(f"요소 확인 완료: {kor_name}", "PASSED")
-                if ss_func:
-                    shot = ss_func(f"S6_Elem_{eng_id}")
-                    reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+        TARGET_TEXT = "건강 기록"
+        TARGET_XPATH = "//*[contains(@text,'건강 기록')]"
 
-def _try_find(driver, xpath):
-    from appium.webdriver.common.appiumby import AppiumBy
-    try:
-        driver.find_element(AppiumBy.XPATH, xpath)
-        return True
-    except:
-        return False
+        if reporter:
+            reporter.step(f"스크롤하며 타이틀 탐색: {TARGET_TEXT}")
+
+        # 타이틀이 보일 때까지 스크롤
+        self.scroll_to_text("건강 기록")
+
+        try:
+            self.wait_for_element(TARGET_XPATH, timeout=7)
+            print(f"[OK] 타이틀 확인: {TARGET_TEXT}")
+            if reporter:
+                reporter.step(f"타이틀 노출 확인: {TARGET_TEXT}", "PASSED")
+            if ss_func:
+                shot = ss_func("S6_Elem_Health_Record")
+                if reporter:
+                    reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
+        except Exception:
+            if ss_func:
+                ss_func("S6_FAIL_Health_Record")
+            raise AssertionError(f"타이틀을 찾을 수 없습니다: '{TARGET_TEXT}'")
+

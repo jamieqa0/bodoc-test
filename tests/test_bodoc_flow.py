@@ -10,13 +10,14 @@ from pages.intro_page import IntroPage
 from pages.login_page import LoginPage
 from pages.home_page import HomePage
 from pages.diagnosis_page import DiagnosisPage
+from pages.menu_page import MenuPage
 
 
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 1 : 앱 런치
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_1_app_launch(driver, ss, reporter):
-    """앱이 정상적으로 실행되고 초기 화면이 나타나는지 확인"""
+    """앱 정상 실행 및 초기 화면 진입 확인"""
     with scenario_context(reporter, "시나리오1_앱_런치", ss, "S1"):
         time.sleep(1)
 
@@ -46,7 +47,7 @@ def test_scenario_1_app_launch(driver, ss, reporter):
 # 시나리오 2 : 카카오 로그인
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_2_kakao_login(driver, ss, reporter):
-    """카카오 계정으로 로그인 완료까지 확인 (이미 로그인된 경우 자동 스킵)"""
+    """카카오 계정으로 로그인 확인 (이미 로그인된 경우 스킵)"""
     with scenario_context(reporter, "시나리오2_카카오_로그인", ss, "S2"):
         intro = IntroPage(driver, ss)
         login = LoginPage(driver, ss)
@@ -184,6 +185,28 @@ def test_scenario_7_reward_tab(driver, ss, reporter):
         reward.go_reward(ss, reporter)
         reward.verify_elements(ss, reporter)
         print("[완료] 시나리오 7 성공")
+
+
+# ══════════════════════════════════════════════════════════════════
+# 시나리오 8 : 전체 메뉴 진입 검증
+# ══════════════════════════════════════════════════════════════════
+def test_scenario_8_menu_validation(driver, ss, reporter):
+    """전체 메뉴 열기 및 주요 항목 확인"""
+    with scenario_context(reporter, "시나리오8_메뉴_검증", ss, "S8"):
+        menu = MenuPage(driver, ss)
+        
+        # 메뉴 열기
+        menu.open()
+        shot = ss("S8_Menu_Opened")
+        reporter.step("전체 메뉴 열기 완료", "PASSED", shot)
+        
+        # 요소 확인 (실패 시 예외 발생)
+        menu.verify_elements(ss, reporter)
+        
+        # 홈으로 복귀 (다음 테스트를 위해)
+        driver.back()
+        time.sleep(1)
+        print("[완료] 시나리오 8 성공")
 
 
 # ══════════════════════════════════════════════════════════════════

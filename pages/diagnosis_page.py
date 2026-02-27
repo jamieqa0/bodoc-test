@@ -7,6 +7,7 @@ class DiagnosisPage(BasePage):
     DIAGNOSIS_TAB = "//*[@text='진단']"
 
     def go_diagnosis(self, ss_func=None, reporter=None):
+        self.wait_for_home()
         self.click(self.DIAGNOSIS_TAB, "DiagnosisTab_Move")
         time.sleep(1)
         if ss_func:

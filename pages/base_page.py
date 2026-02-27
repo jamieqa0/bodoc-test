@@ -16,6 +16,15 @@ class BasePage:
         self.driver = driver
         self.ss = screenshot_func
 
+    def wait_for_home(self, timeout=15):
+        """하단 탭바(홈)가 나타날 때까지 대기 — 단독 실행 시 앱 재시작 후 로그인 완료 보장"""
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda d: d.find_elements(AppiumBy.XPATH, "//*[@text='홈' or @content-desc='홈']")
+            )
+        except Exception:
+            raise AssertionError("홈 화면 진입 실패 — 로그인 상태 또는 앱 초기화를 확인하세요.")
+
     def wait_for_element(self, xpath, timeout=5):
         """요소를 찾을 때까지 대기"""
         return WebDriverWait(self.driver, timeout).until(
