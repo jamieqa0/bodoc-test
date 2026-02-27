@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.env
+
+# Test outputs
+outputs/
+screenshots/
+*.xml
+*.png
+
+# Archive
+archive/
+
+# IDE
+.vscode/
+.idea/
+
+# Local configuration
+utils/config.py

@@ -1,0 +1,62 @@
+from pages.base_page import BasePage
+import time
+
+class MydataFlow(BasePage):
+    # Locators
+    CONNECT_40_BUTTON     = "//*[contains(@text, '연결하기')]"
+    NAVER_CERT_BUTTON     = "//*[contains(@text, '네이버')]"
+    AGREE_CONTINUE_BUTTON = "//*[contains(@text, '동의하고 계속하기')]"
+    CONFIRM_BUTTON        = "//*[contains(@text, '확인')]"
+    GET_DIAGNOSIS_BUTTON  = "//*[contains(@text, '진단받기')]"
+    CHAT_X_BUTTON         = "//android.widget.ImageView[contains(@content-desc, '닫기')] | //*[@text='X']"
+
+    def click_connect_40(self):
+        print("> 보험사 연결 화면 하단으로 스크롤 중...")
+        self.scroll_to_text("연결하기")
+        self.click(self.CONNECT_40_BUTTON, "S5_Connect40_Click")
+
+    def select_naver_cert(self):
+        self.click(self.NAVER_CERT_BUTTON, "S5_NaverCert_Select")
+
+    def agree_and_continue(self):
+        print("> 약관 동의 화면 스크롤 하단 이동...")
+        self.scroll_down()
+        self.click(self.AGREE_CONTINUE_BUTTON, "S5_Agree_Continue")
+
+    def wait_for_connection(self):
+        print("> 데이터 연결 및 수집 대기 중 (40초)...")
+        for i in range(8):
+            time.sleep(5)
+            self.driver.execute_script('mobile: unlock')
+            print(f"> 대기 중... ({(i+1)*5}/40초)")
+
+    def click_final_confirms(self):
+        self.click(self.CONFIRM_BUTTON, "S5_Result_Confirm_1st")
+        self.click(self.CONFIRM_BUTTON, "S5_Result_Confirm_2nd")
+
+    def dismiss_extra_agreements(self, max_attempts=5):
+        """결과 확인 후 남아있는 추가 약관 동의 화면을 모두 처리"""
+        print("> 추가 약관 동의 화면 처리 중...")
+        for i in range(max_attempts):
+            try:
+                self.wait_for_element(self.AGREE_CONTINUE_BUTTON, timeout=3)
+                print(f"  [추가동의 {i+1}] '동의하고 계속하기' 발견 → 클릭")
+                self.scroll_down()
+                self.click(self.AGREE_CONTINUE_BUTTON, f"S5_ExtraAgree_{i+1}")
+                time.sleep(1.5)
+            except Exception:
+                print(f"  [추가동의] 더 이상 동의 화면 없음 (총 {i}회 처리 완료)")
+                break
+
+    def get_insurance_diagnosis(self):
+        print("> '진단받기' 버튼 찾는 중 (스크롤 후 클릭)...")
+        self.scroll_down()
+        self.click(self.GET_DIAGNOSIS_BUTTON, "S5_GetDiagnosis_Click")
+
+    def close_chat(self):
+        print("> 전문가 채팅 종료 시도 (X 버튼)...")
+        try:
+            self.click(self.CHAT_X_BUTTON, "S5_ChatClose_Click")
+        except Exception:
+            print("[WARN] 채팅 X 버튼 클릭 실패. 좌표 클릭 시도...")
+            self.tap_coordinate(0.92, 0.05, "S5_ChatClose_Tap")
