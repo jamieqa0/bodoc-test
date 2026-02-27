@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(appium driver:*)",
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(netstat -ano)",
+      "Bash(xargs -I{} powershell -Command \"Stop-Process -Id {} -Force -ErrorAction SilentlyContinue; Write-Host ''killed {}''\")",
+      "Bash(export:*)"
+    ]
+  }
+}

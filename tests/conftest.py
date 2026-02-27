@@ -26,9 +26,10 @@ def run_id():
 
 # ── 드라이버 ─────────────────────────────────────────────────
 @pytest.fixture(scope="session")
-def driver_setup():
+def driver_setup(reporter):
     print("\n[INFO] Appium 드라이버 초기화 시작...")
     options = UiAutomator2Options().load_capabilities(CAPABILITIES)
+    options.set_capability('appium:uiautomator2ServerInstallTimeout', 60000)
     try:
         driver = webdriver.Remote(APPIUM_SERVER_URL, options=options)
         driver.implicitly_wait(5)
@@ -48,6 +49,9 @@ def driver_setup():
         yield driver
     except Exception as e:
         print(f"[ERROR] 드라이버 초기화 실패: {e}")
+        reporter.start_scenario("드라이버 초기화 실패")
+        reporter.step(f"Appium/디바이스 연결 오류: {str(e)}", "FAILED")
+        reporter.end_scenario("FAILED", error=e)
         raise
     finally:
         if 'driver' in locals() and driver:
