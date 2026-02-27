@@ -35,9 +35,9 @@ def test_scenario_1_app_launch(driver, ss, reporter):
         )
 
         if found:
-            reporter.step("앱 화면 요소 확인", "PASSED")
+            reporter.step("앱 화면 요소 확인", "PASSED", shot)
         else:
-            reporter.step("앱 화면 요소 확인", "FAILED")
+            reporter.step("앱 화면 요소 확인", "FAILED", shot)
             raise AssertionError("앱 초기 화면 요소를 찾을 수 없습니다.")
 
         print("[완료] 시나리오 1 성공")
