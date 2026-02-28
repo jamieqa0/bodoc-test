@@ -23,4 +23,5 @@ class NotificationPage(BasePage):
                         reporter.step(f"요소 스크린샷: {name}", "PASSED", shot)
             except Exception:
                 if reporter:
-                    reporter.step(f"요소 확인: {name}", "FAILED")
+                    shot = ss_func(f"알림_FAIL_{name[:15]}") if ss_func else None
+                    reporter.step(f"요소 확인: {name}", "FAILED", shot)

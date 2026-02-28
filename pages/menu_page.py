@@ -75,8 +75,9 @@ class MenuPage(BasePage):
                     if reporter:
                         reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
             except Exception:
-                if ss_func:
-                    ss_func(f"S8_FAIL_Section_{eng_id}")
+                shot = ss_func(f"S8_FAIL_Section_{eng_id}") if ss_func else None
+                if reporter:
+                    reporter.step(f"섹션 타이틀 미발견: {kor_name}", "FAILED", shot)
                 raise AssertionError(
                     f"섹션 타이틀을 찾을 수 없습니다: '{kor_name}'"
                 )

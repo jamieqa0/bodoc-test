@@ -37,7 +37,8 @@ class HomePage(BasePage):
             except Exception:
                 print(f"[WARN] 요소 미확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "FAILED")
+                    shot = ss_func(f"S3_FAIL_{eng_id}") if ss_func else None
+                    reporter.step(f"요소 확인: {kor_name}", "FAILED", shot)
 
         # 2. 하단에 위치하거나 보험 리스트 너머에 있는 요소들 (스크롤하며 확인)
         bottom_checks = [
@@ -61,7 +62,8 @@ class HomePage(BasePage):
             except Exception:
                 print(f"[WARN] 하단 요소 미확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"하단 요소 확인: {kor_name}", "FAILED")
+                    shot = ss_func(f"S3_FAIL_Bottom_{eng_id}") if ss_func else None
+                    reporter.step(f"하단 요소 확인: {kor_name}", "FAILED", shot)
 
     def scroll_to_bottom(self, ss_func=None, reporter=None):
         self.scroll_down(2)

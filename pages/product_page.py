@@ -34,6 +34,7 @@ class ProductPage(BasePage):
                 if reporter:
                     reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
         except Exception:
-            if ss_func:
-                ss_func("S5_FAIL_Recommend_Title")
+            shot = ss_func("S5_FAIL_Recommend_Title") if ss_func else None
+            if reporter:
+                reporter.step(f"타이틀 미발견: {TARGET_TEXT}", "FAILED", shot)
             raise AssertionError(f"타이틀을 찾을 수 없습니다: '{TARGET_TEXT}'")

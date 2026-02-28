@@ -31,4 +31,5 @@ class ConsultPage(BasePage):
                         reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
             except Exception:
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "FAILED")
+                    shot = ss_func(f"Consult_FAIL_{eng_id}") if ss_func else None
+                    reporter.step(f"요소 확인: {kor_name}", "FAILED", shot)

@@ -33,7 +33,8 @@ class DiagnosisPage(BasePage):
             except Exception:
                 print(f"[WARN] 요소 미확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "FAILED")
+                    shot = ss_func(f"S4_FAIL_{eng_id}") if ss_func else None
+                    reporter.step(f"요소 확인: {kor_name}", "FAILED", shot)
 
     def scroll_to_bottom(self, ss_func=None, reporter=None):
         self.scroll_down(2)
@@ -93,5 +94,6 @@ class DiagnosisPage(BasePage):
         except Exception as e:
             print(f"[FAIL] 보험료 정보 미확인: {e}")
             if reporter:
-                reporter.step("보험료 정보 확인 실패", "FAILED")
+                shot = ss_func("S4_FAIL_Premium_Check") if ss_func else None
+                reporter.step("보험료 정보 확인 실패", "FAILED", shot)
             raise e
