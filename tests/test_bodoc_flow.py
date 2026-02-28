@@ -17,7 +17,7 @@ from pages.menu_page import MenuPage
 # 시나리오 1 : 앱 런치
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_1_app_launch(driver, ss, reporter):
-    """앱 실행 및 화면 진입 확인:
+    """앱 실행 및 화면 진입:
     앱 실행 → 초기화면 진입 → 카카오·홈·보닥·보험 텍스트 중 하나 이상 노출 확인"""
     with scenario_context(reporter, "시나리오1_앱_런치", ss, "S1"):
         time.sleep(1)
@@ -48,7 +48,7 @@ def test_scenario_1_app_launch(driver, ss, reporter):
 # 시나리오 2 : 카카오 로그인
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_2_kakao_login(driver, ss, reporter):
-    """카카오 계정 로그인 확인 (이미 로그인된 경우 스킵):
+    """카카오 계정 로그인 (로그인된 경우 스킵):
     초기화면 진입 → 이미 로그인 여부 확인 → 권한 허용 처리 → 카카오로 시작하기 클릭
     → 웹뷰 전환 → 계속하기 클릭 → 카카오 계정 선택 → 홈 화면 진입 확인"""
     with scenario_context(reporter, "시나리오2_카카오_로그인", ss, "S2"):
@@ -177,7 +177,7 @@ def test_scenario_4_diagnosis_tab(driver, ss, reporter):
 # 시나리오 5 : 상품 탭 검증
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_5_product_tab(driver, ss, reporter):
-    """상품 탭 추천 상품 타이틀 노출 확인:
+    """상품 탭 요소 확인:
     상품 탭 진입 → 스크롤 탐색 → '보닥 회원만을 위한 추천 상품' 타이틀 노출 확인"""
     from pages.product_page import ProductPage
     with scenario_context(reporter, "시나리오5_상품탭_검증", ss, "S5"):
@@ -191,7 +191,7 @@ def test_scenario_5_product_tab(driver, ss, reporter):
 # 시나리오 6 : 건강 탭 검증
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_6_health_tab(driver, ss, reporter):
-    """건강 탭 건강 기록 타이틀 노출 확인:
+    """건강 탭 요소 확인:
     건강 탭 진입 → 스크롤 탐색 → '건강 기록' 타이틀 노출 확인"""
     from pages.health_page import HealthPage
     with scenario_context(reporter, "시나리오6_건강탭_검증", ss, "S6"):
@@ -205,7 +205,7 @@ def test_scenario_6_health_tab(driver, ss, reporter):
 # 시나리오 7 : 보상 탭 검증
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_7_reward_tab(driver, ss, reporter):
-    """보상 탭 보상 사례 타이틀 노출 확인:
+    """보상 탭 요소 확인:
     보상 탭 진입 → 스크롤 탐색 → 유형별 보상 사례·자주 묻는 보상 질문 중 하나 이상 노출 확인"""
     from pages.reward_page import RewardPage
     with scenario_context(reporter, "시나리오7_보상탭_검증", ss, "S7"):
@@ -219,7 +219,7 @@ def test_scenario_7_reward_tab(driver, ss, reporter):
 # 시나리오 8 : 전체 메뉴 진입 검증
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_8_menu_validation(driver, ss, reporter):
-    """전체 메뉴 타이틀 노출 확인:
+    """전체 메뉴 진입 확인:
     전체 메뉴 열기 → 보험 → 보상/청구 → 생활/건강 → 정보 → 고객서비스 섹션 확인"""
     with scenario_context(reporter, "시나리오8_메뉴_검증", ss, "S8"):
         menu = MenuPage(driver, ss)
@@ -243,7 +243,8 @@ def test_scenario_8_menu_validation(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 @pytest.mark.skip(reason="시나리오10 작업 중 — 일시 비활성화")
 def test_scenario_10_mydata(driver, ss, reporter):
-    """홈 탭 → 내 보험 추가하기 → 40개 연결 → 네이버 인증 → 약관 → 진단받기 → 채팅 종료"""
+    """홈 탭 → 내 보험 추가하기:
+    → 40개 연결 → 네이버 인증 → 약관 → 진단받기 → 채팅 종료"""
     with scenario_context(reporter, "시나리오10_마이데이터_연동", ss, "S10"):
         from pages.mydata_flow import MydataFlow
 

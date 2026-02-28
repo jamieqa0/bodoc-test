@@ -45,7 +45,7 @@ class DiagnosisPage(BasePage):
         print("> '내 보험료' 탭 찾는 중 (상단)...")
         
         # 하단까지 내려갔으므로 다시 위로 충분히 스크롤 (탭은 보통 상단에 위치)
-        self.scroll_up(3)
+        self.scroll_up(5)
         time.sleep(1)
         
         # 탭 이동 (XPath 유연화: 공백 유무 대응)
