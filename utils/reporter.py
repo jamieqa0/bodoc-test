@@ -768,12 +768,17 @@ class TestReporter:
             "end": None,
             "duration": 0,
             "steps": [],
-            "error": None
+            "error": None,
+            "step_count": 0  # 이 시나리오의 전체 스텝 수
         }
 
     def step(self, name, status="PASSED", screenshot=None):
         if self._current is None: return
-        self._current["steps"].append({"name": name, "status": status, "screenshot": screenshot})
+        self._current["step_count"] += 1
+        step_number = self._current["step_count"]
+        # 결과 JSON의 steps에 "1️⃣ 스텝 이름" 형태로 저장
+        numbered_name = f"{step_number}️⃣ {name}"
+        self._current["steps"].append({"name": numbered_name, "status": status, "screenshot": screenshot})
 
     def end_scenario(self, status, error=None):
         if self._current is None: return

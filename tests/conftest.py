@@ -133,10 +133,12 @@ def scenario_context(reporter, name, ss, fail_prefix):
         reporter.end_scenario("PASSED")
     except Exception as e:
         shot = ss(f"{fail_prefix}_FAIL")
-        # 오류 메시지를 자르지 않고 전체 전달, end_scenario에도 error 객체 전달 (V1.3.3 대응)
-        reporter.step(f"오류: {str(e)}", "FAILED", shot)
-        reporter.end_scenario("FAILED", error=e)
-        pytest.fail(str(e))
+        # 오류 메시지를 자르지 않고 전체 전달하되, step 이름은 첫 줄만 표시
+        full_err = str(e)
+        short_err = full_err.split('\n')[0][:100] + ('...' if len(full_err.split('\n')[0]) > 100 else '')
+        reporter.step(f"오류: {short_err}", "FAILED", shot)
+        reporter.end_scenario("FAILED", error=full_err)
+        pytest.fail(full_err)
 
 
 # ── 각 테스트 전/후 처리 ──────────────────────────────────────

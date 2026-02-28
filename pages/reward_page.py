@@ -19,6 +19,7 @@ class RewardPage(BasePage):
                 reporter.step("보상 탭 진입 확인", "PASSED", shot)
 
     def verify_elements(self, ss_func=None, reporter=None):
+        """보상 탭 주요 요소를 순차적으로 확인"""
         TARGET_TEXT = "유형별 보상 사례 / 자주 묻는 보상 질문"
         # 둘 중 하나라도 보이면 성공
         TARGET_XPATH = (
@@ -30,23 +31,21 @@ class RewardPage(BasePage):
             " or contains(@text,'보상 질문')]"
         )
 
+        # 1️⃣ 두 키워드 중 먼저 찾히는 쪽으로 스크롤하며 대상 탐색
         if reporter:
-            reporter.step(f"스크롤하며 타이틀 탐색: {TARGET_TEXT}")
-
-        # 두 키워드 중 먼저 찾히는 쪽으로 스크롤
+            reporter.step(f"화면 스크롤하며 대상 탐색: {TARGET_TEXT}")
         self.scroll_to_text("보상 사례")
 
+        # 2️⃣ 해당 타이틀 영역 노출 확인
         try:
             self.wait_for_element(TARGET_XPATH, timeout=7)
+            shot = ss_func("S7_2_Elem_Reward_Case") if ss_func else None
+            if reporter:
+                reporter.step(f"'{TARGET_TEXT}' 노출 확인", "PASSED", shot)
             print(f"[OK] 타이틀 확인: {TARGET_TEXT}")
-            if reporter:
-                reporter.step(f"타이틀 노출 확인: {TARGET_TEXT}", "PASSED")
-            if ss_func:
-                shot = ss_func("S7_Elem_Reward_Case")
-                if reporter:
-                    reporter.step(f"스크린샷: {TARGET_TEXT}", "PASSED", shot)
+                
         except Exception:
-            shot = ss_func("S7_FAIL_Reward_Case") if ss_func else None
+            shot = ss_func("S7_2_FAIL_Reward_Case") if ss_func else None
             if reporter:
-                reporter.step(f"타이틀 미발견: {TARGET_TEXT}", "FAILED", shot)
+                reporter.step(f"'{TARGET_TEXT}' 노출 확인 실패", "FAILED", shot)
             raise AssertionError(f"타이틀을 찾을 수 없습니다: '{TARGET_TEXT}'")

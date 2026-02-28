@@ -17,32 +17,42 @@ class HomePage(BasePage):
             pass  # 이미 홈이면 무시
 
     def verify_home_elements(self, ss_func=None, reporter=None):
-        # 1. 상단에서 바로 보이는 요소들 (영문ID, 한글명, XPath, 스크롤필요여부)
-        checks = [
-            ("Home_Tab_Nav",        "홈 탭 네비게이션", "//*[@text='홈']",                              False),
-            ("Insurance_Diagnosis", "보험 종합진단",    "//*[contains(@text,'보험 종합진단')]",          False),
-            ("Monthly_Premium",     "매월 내는 보험료", "//*[contains(@text,'매월 내는 보험료')]",        False),
-        ]
-        for eng_id, kor_name, xpath, needs_scroll in checks:
-            if needs_scroll:
-                self.scroll_to_text(kor_name)
-            self.wait_for_element(xpath, timeout=5)
-            shot = ss_func(f"S3_Elem_{eng_id}") if ss_func else None
-            if reporter:
-                reporter.step(f"요소 확인: {kor_name}", "PASSED", shot)
-            print(f"[OK] 요소 확인: {kor_name}")
+        """홈 탭 주요 요소를 순차적으로 확인"""
 
-        # 2. 하단 요소 — 스크롤하며 확인
-        bottom_checks = [
-            ("Hidden_Insurance_Money", "숨은 보험금",   "//*[contains(@text,'숨은 보험금')]"),
-            ("Add_Insurance_Btn",      "내 보험 추가",   "//*[contains(@text,'내 보험 추가') or contains(@text,'보험 추가')]"),
-        ]
-        for eng_id, kor_name, xpath in bottom_checks:
-            self.scroll_until_visible(xpath, max_scrolls=8, check_timeout=1)
-            shot = ss_func(f"S3_Elem_Bottom_{eng_id}") if ss_func else None
-            if reporter:
-                reporter.step(f"하단 요소 확인: {kor_name}", "PASSED", shot)
-            print(f"[OK] 하단 요소 확인: {kor_name}")
+        # 1️⃣ 홈 탭 네비게이션 확인 (상단 노출)
+        self.wait_for_element(self.HOME_TAB, timeout=5)
+        shot = ss_func("S3_2_Home_Tab_Nav") if ss_func else None
+        if reporter:
+            reporter.step("홈 탭 네비게이션 노출 확인", "PASSED", shot)
+        print("[OK] 홈 탭 네비게이션 확인")
+
+        # 2️⃣ 보험 종합진단 확인 (상단 노출)
+        self.wait_for_element("//*[contains(@text,'보험 종합진단')]", timeout=5)
+        shot = ss_func("S3_3_Home_Insurance_Diagnosis") if ss_func else None
+        if reporter:
+            reporter.step("보험 종합진단 노출 확인", "PASSED", shot)
+        print("[OK] 보험 종합진단 확인")
+
+        # 3️⃣ 매월 내는 보험료 확인 (상단 노출)
+        self.wait_for_element("//*[contains(@text,'매월 내는 보험료')]", timeout=5)
+        shot = ss_func("S3_4_Home_Monthly_Premium") if ss_func else None
+        if reporter:
+            reporter.step("매월 내는 보험료 노출 확인", "PASSED", shot)
+        print("[OK] 매월 내는 보험료 확인")
+        #  여기서 뭔가 이상해
+        # 4️⃣ 숨은 보험금 확인 (스크롤 필요)
+        self.scroll_until_visible("//*[contains(@text,'숨은 보험금')]", max_scrolls=8, check_timeout=1)
+        shot = ss_func("S3_5_Home_Hidden_Insurance") if ss_func else None
+        if reporter:
+            reporter.step("숨은 보험금 노출 확인", "PASSED", shot)
+        print("[OK] 숨은 보험금 확인")
+
+        # 5️⃣ 내 보험 추가 확인 (스크롤 필요)
+        self.scroll_until_visible("//*[contains(@text,'내 보험 추가') or contains(@text,'보험 추가')]", max_scrolls=8, check_timeout=1)
+        shot = ss_func("S3_6_Home_Add_Insurance_Btn") if ss_func else None
+        if reporter:
+            reporter.step("내 보험 추가 노출 확인", "PASSED", shot)
+        print("[OK] 내 보험 추가 확인")
 
     def verify_home_scroll_steps(self, ss_func, reporter):
         """홈 화면을 단계별로 한 블록씩 스크롤하며 요소 확인"""
@@ -52,37 +62,38 @@ class HomePage(BasePage):
 
         # 1️⃣ 홈탭 진입 확인
         self.wait_for_element(self.HOME_TAB, timeout=5)
-        shot = ss_func("S3_1_Home_Entry")
+        shot = ss_func("S3-1_2_Home_Entry")
         reporter.step("홈탭 진입 확인", "PASSED", shot)
         print("[OK] 홈탭 진입 확인")
 
         # 2️⃣ 내 보험 종합진단
         self.wait_for_element("//*[contains(@text,'보험 종합진단')]", timeout=5)
-        shot = ss_func("S3_2_Insurance_Diagnosis")
+        shot = ss_func("S3-1_3_Home_Insurance_Diagnosis")
         reporter.step("내 보험 종합진단 노출 확인", "PASSED", shot)
         print("[OK] 내 보험 종합진단 확인")
         self.scroll_down(1)
 
         # 3️⃣ 매월 내는 보험료
         self.wait_for_element("//*[contains(@text,'매월 내는 보험료')]", timeout=5)
-        shot = ss_func("S3_3_Monthly_Premium")
+        shot = ss_func("S3-1_4_Home_Monthly_Premium")
         reporter.step("매월 내는 보험료 노출 확인", "PASSED", shot)
         print("[OK] 매월 내는 보험료 확인")
         self.scroll_down(1)
 
         # 4️⃣ AI 고민상담소
         self.scroll_until_visible(self.AI_CONSULTING, max_scrolls=5, check_timeout=1)
-        shot = ss_func("S3_4_AI_Consulting")
+        shot = ss_func("S3-1_5_Home_AI_Consulting")
         reporter.step("AI 고민상담소 노출 확인", "PASSED", shot)
         print("[OK] AI 고민상담소 확인")
         self.scroll_down(1)
 
         # 5️⃣ 숨은 보험금
         self.scroll_until_visible("//*[contains(@text,'숨은 보험금')]", max_scrolls=5, check_timeout=1)
-        shot = ss_func("S3_5_Hidden_Insurance")
+        shot = ss_func("S3-1_6_Home_Hidden_Insurance")
         reporter.step("숨은 보험금 노출 확인", "PASSED", shot)
         print("[OK] 숨은 보험금 확인")
         self.scroll_down(1)
+        time.sleep(1)
 
         # 6️⃣ 이런 상황일 때 OR 손해사정사에게
         target_xpath = (
@@ -90,7 +101,7 @@ class HomePage(BasePage):
             "contains(@text,'손해사정사에게')]"
         )
         self.scroll_until_visible(target_xpath, max_scrolls=5, check_timeout=1)
-        shot = ss_func("S3_6_Situation_Or_Adjuster")
+        shot = ss_func("S3-1_7_Home_Adjuster")
         reporter.step("'이런 상황일 때' 또는 '손해사정사에게' 노출 확인", "PASSED", shot)
         print("[OK] 상황 안내 영역 확인")
 
@@ -99,7 +110,7 @@ class HomePage(BasePage):
 
         # 7️⃣ 건강정보 확인하기
         self.scroll_until_visible(self.HEALTH_INFO_BTN, max_scrolls=5, check_timeout=1)
-        shot = ss_func("S3_7_Health_Info")
+        shot = ss_func("S3-1_8_Home_Health_Info")
         reporter.step("건강정보 확인하기 노출 확인", "PASSED", shot)
         print("[OK] 건강정보 확인하기 확인")
 
@@ -107,4 +118,4 @@ class HomePage(BasePage):
         print("> 홈 화면 하단 '내 보험 추가하기' 영역 찾는 중...")
         self.driver.execute_script('mobile: unlock')
         self.scroll_to_text("내 보험 추가")
-        self.click(self.ADD_INSURANCE_BUTTON, "S5_AddInsurance_Click")
+        self.click(self.ADD_INSURANCE_BUTTON, "S5_Home_AddInsurance_Click")
