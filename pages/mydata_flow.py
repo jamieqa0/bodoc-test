@@ -26,10 +26,29 @@ class MydataFlow(BasePage):
     def select_naver_cert(self):
         self.click(self.NAVER_CERT_BUTTON, "S5_NaverCert_Select")
 
-    def agree_and_continue(self):
-        print("> 약관 동의 화면 스크롤 하단 이동...")
-        self.scroll_down()
-        self.click(self.AGREE_CONTINUE_BUTTON, "S5_Agree_Continue")
+    def agree_and_continue(self, max_pages=6):
+        """약관 동의 화면 전체 처리. 한 번 클릭 후 화면이 전환되면 반복한다.
+        동의 페이지가 여러 장인 경우(보험사별 약관, 개인정보 동의 등) 모두 처리한다."""
+        for i in range(max_pages):
+            try:
+                self.wait_for_element(self.AGREE_CONTINUE_BUTTON, timeout=5)
+            except Exception:
+                print(f"  [약관동의] 동의 화면 없음 — 총 {i}페이지 처리 완료")
+                break
+            print(f"  [약관동의 {i+1}] '동의하고 계속하기' 발견 → 스크롤 후 클릭")
+            self.scroll_down()
+            self.click(self.AGREE_CONTINUE_BUTTON, f"S10_Agree_Continue_{i+1}")
+            # 동일 버튼이 사라질 때까지(=화면 전환) 대기 후 다음 라운드 확인
+            try:
+                WebDriverWait(self.driver, 8).until(
+                    lambda d: not d.find_elements(
+                        AppiumBy.XPATH, self.AGREE_CONTINUE_BUTTON
+                    )
+                )
+            except Exception:
+                # 사라지지 않으면 루프 탈출 (무한 반복 방지)
+                print(f"  [약관동의] 버튼 변화 없음 — 루프 종료")
+                break
 
     def wait_for_connection(self, timeout=90):
         """마이데이터 수집 완료 대기.
@@ -43,9 +62,27 @@ class MydataFlow(BasePage):
         WebDriverWait(self.driver, timeout).until(_done)
         print("[OK] 마이데이터 연결 완료 감지")
 
-    def click_final_confirms(self):
-        self.click(self.CONFIRM_BUTTON, "S5_Result_Confirm_1st")
-        self.click(self.CONFIRM_BUTTON, "S5_Result_Confirm_2nd")
+    def click_final_confirms(self, max_confirms=3):
+        """연결 결과 화면의 확인/닫기 버튼을 모두 처리.
+        버튼이 1개만 있거나 여러 개인 경우 모두 대응한다."""
+        CLOSE_XPATH = (
+            "//*[contains(@text,'확인') or contains(@text,'닫기') "
+            "or contains(@text,'완료')]"
+        )
+        for i in range(max_confirms):
+            try:
+                self.wait_for_element(CLOSE_XPATH, timeout=5)
+                self.click(CLOSE_XPATH, f"S10_Confirm_{i+1}")
+                # 버튼 사라짐 대기
+                try:
+                    WebDriverWait(self.driver, 5).until(
+                        lambda d: not d.find_elements(AppiumBy.XPATH, CLOSE_XPATH)
+                    )
+                except Exception:
+                    break
+            except Exception:
+                print(f"  [최종확인] 더 이상 확인 화면 없음 (총 {i}회 처리)")
+                break
 
     def dismiss_extra_agreements(self, max_attempts=5):
         """결과 확인 후 남아있는 추가 약관 동의 화면을 모두 처리"""

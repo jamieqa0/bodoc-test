@@ -37,19 +37,36 @@ class LoginPage(BasePage):
         assert element.is_displayed()
 
     def verify_logged_in(self):
-        """로그인 완료 후 하단 탭바 5개(홈·진단·상품·건강·보상) 노출 확인.
-        모든 탭이 보여야 정상 로그인 상태로 간주한다."""
-        tabs = ['홈', '진단', '상품', '건강', '보상']
-        for tab in tabs:
+        """로그인 상태 실질 검증: 전체 메뉴에서 '로그아웃' 항목 노출 확인.
+        탭바 노출만으로는 로그인 여부를 알 수 없으므로, 비로그인 상태에서는
+        표시되지 않는 '로그아웃' 메뉴 항목으로 검증한다."""
+        MENU_BUTTON  = "(//*[@text='메뉴' or @content-desc='메뉴'])[1]"
+        LOGOUT_XPATH = "//*[contains(@text,'로그아웃') or contains(@content-desc,'로그아웃')]"
+
+        # 1. 전체 메뉴 진입
+        try:
+            self.wait_for_element(MENU_BUTTON, timeout=5)
+            self.click(MENU_BUTTON, "LoggedIn_MenuOpen")
+        except Exception:
+            raise AssertionError("로그인 검증 실패: 전체 메뉴 버튼을 찾을 수 없습니다.")
+
+        # 2. '로그아웃' 항목 탐색 (하단에 위치)
+        try:
+            self.scroll_to_text("로그아웃")
+            self.wait_for_element(LOGOUT_XPATH, timeout=5)
+            print("[OK] '로그아웃' 메뉴 항목 확인 — 로그인 상태 검증 완료")
+        except Exception:
+            raise AssertionError(
+                "로그인 검증 실패: '로그아웃' 메뉴 항목이 없습니다. "
+                "로그인이 완료되지 않았거나 메뉴 구조가 변경되었습니다."
+            )
+        finally:
+            # 3. 메뉴 닫고 홈으로 복귀
             try:
-                WebDriverWait(self.driver, 5).until(
-                    lambda d, t=tab: d.find_elements(
-                        AppiumBy.XPATH, f"//*[@text='{t}']"
-                    )
-                )
-                print(f"[OK] 탭 '{tab}' 확인")
+                self.driver.back()
+                self.wait_for_home(timeout=10)
             except Exception:
-                raise AssertionError(f"로그인 후 하단 탭 '{tab}'이 표시되지 않습니다.")
+                pass
 
     # ── 웹뷰 헬퍼 ─────────────────────────────────────────────
     def _switch_to_webview(self):
