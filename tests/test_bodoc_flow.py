@@ -18,28 +18,29 @@ from pages.menu_page import MenuPage
 # ══════════════════════════════════════════════════════════════════
 def test_scenario_1_app_launch(driver, ss, reporter):
     """앱 실행 및 화면 진입:
-    앱 실행 → 초기화면 진입 → 카카오·홈·보닥·보험 텍스트 중 하나 이상 노출 확인"""
+    앱 실행 → 초기화면 진입 → 로그인 화면 또는 홈 화면 중 하나 확인"""
     with scenario_context(reporter, "시나리오1_앱_런치", ss, "S1"):
-        # 1️⃣ 앱 실행 및 대기
-        time.sleep(1)
+        # 1️⃣ 앱 초기 로드 대기 — 로그인 버튼 또는 홈 탭 중 하나가 나타날 때까지
+        try:
+            WebDriverWait(driver, 15).until(
+                lambda d: (
+                    _try_find(d, "//*[@text='카카오로 시작하기']")
+                    or _try_find(d, "//*[@text='홈']")
+                )
+            )
+        except Exception:
+            shot = ss("S1_FAIL_App_Not_Loaded")
+            reporter.step("앱 초기 화면 로드 실패", "FAILED", shot)
+            raise AssertionError("15초 내에 앱 초기 화면이 표시되지 않았습니다.")
 
-        # 2️⃣ 초기화면 진입 확인
         shot = ss("S1_2_Entry_LaunchScreen")
         reporter.step("앱 실행 및 초기화면 진입", "PASSED", shot)
 
-        # 3️⃣ 앱 화면 요소 노출 확인 (카카오, 홈, 보닥, 보험 중 하나)
-        found = any(
-            _try_find(driver, xpath)
-            for xpath in [
-                "//*[contains(@text,'카카오')]",
-                "//*[@text='홈']",
-                "//*[contains(@text,'보닥')]",
-                "//*[contains(@text,'보험')]",
-            ]
-        )
-
-        if found:
-            reporter.step("앱 화면 요소 노출 확인", "PASSED", shot)
+        # 2️⃣ 화면 상태 판별 및 검증
+        if _try_find(driver, "//*[@text='홈']"):
+            reporter.step("홈 화면 진입 확인 (로그인 상태)", "PASSED", shot)
+        elif _try_find(driver, "//*[@text='카카오로 시작하기']"):
+            reporter.step("로그인 화면 진입 확인 (미로그인 상태)", "PASSED", shot)
         else:
             reporter.step("앱 화면 요소 노출 확인", "FAILED", shot)
             raise AssertionError("앱 초기 화면 요소를 찾을 수 없습니다.")
@@ -86,21 +87,26 @@ def test_scenario_2_kakao_login(driver, ss, reporter):
         shot = ss("S2_4_Entry_LoginScreen")
         reporter.step("로그인 화면 진입 확인", "PASSED", shot)
 
-        # 5️⃣ 카카오 로그인 시작 및 웹뷰 전환 대기
+        # 5️⃣ 카카오 로그인 시작 및 웹뷰 전환 확인
         login.start_kakao_login()
-        time.sleep(2)
-        shot = ss("S2_5_Switch_KakaoWebView")
-        reporter.step("카카오 로그인 버튼 클릭 및 웹뷰 전환", "PASSED", shot)
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: any('WEBVIEW' in c for c in d.contexts)
+            )
+            shot = ss("S2_5_Switch_KakaoWebView")
+            reporter.step("카카오 로그인 버튼 클릭 및 웹뷰 전환 확인", "PASSED", shot)
+        except Exception:
+            shot = ss("S2_5_FAIL_KakaoWebView")
+            reporter.step("웹뷰 전환 실패", "FAILED", shot)
+            raise AssertionError("카카오 로그인 후 웹뷰로 전환되지 않았습니다.")
 
         # 6️⃣ 카카오 계속하기 클릭
         login.click_kakao_continue()
-        time.sleep(2)
         shot = ss("S2_6_Switch_After_Continue")
         reporter.step("카카오 '계속하기' 클릭", "PASSED", shot)
 
         # 7️⃣ 카카오 계정 선택
         login.select_first_kakao_account()
-        time.sleep(3)
         shot = ss("S2_7_Switch_After_Account_Select")
         reporter.step("카카오 계정 선택 완료", "PASSED", shot)
 
@@ -129,9 +135,8 @@ def test_scenario_3_home_tab(driver, ss, reporter):
     with scenario_context(reporter, "시나리오3_홈탭_검증", ss, "S3"):
         home = HomePage(driver, ss)
 
-        # 1️⃣ 홈 탭 진입
+        # 1️⃣ 홈 탭 진입 (go_home 내부에서 wait_for_home으로 대기)
         home.go_home()
-        time.sleep(1)
         shot = ss("S3_1_Entry_HomeTab")
         reporter.step("홈 탭 진입", "PASSED", shot)
 
@@ -150,9 +155,8 @@ def test_scenario_3_1_home_tab_scroll(driver, ss, reporter):
     with scenario_context(reporter, "시나리오3-1_홈탭_스크롤_검증", ss, "S3_1"):
         home = HomePage(driver, ss)
 
-        # 1️⃣ 홈 탭 진입
+        # 1️⃣ 홈 탭 진입 (go_home 내부에서 wait_for_home으로 대기)
         home.go_home()
-        time.sleep(1)
         shot = ss("S3-1_1_Entry_HomeTab")
         reporter.step("홈 탭 진입", "PASSED", shot)
 
@@ -172,7 +176,10 @@ def test_scenario_4_diagnosis_tab(driver, ss, reporter):
     with scenario_context(reporter, "시나리오4_진단탭_검증", ss, "S4"):
         diagnosis = DiagnosisPage(driver, ss)
 
-        # 1️⃣ 홈 탭 상태 확인 (전환 전)
+        # 1️⃣ 홈 탭 상태 확인 (전환 전) — 홈 화면이 준비된 것을 확인
+        WebDriverWait(driver, 10).until(
+            lambda d: _try_find(d, "//*[@text='홈']")
+        )
         shot = ss("S4_1_HomeTab_Status_Before_Switch")
         reporter.step("홈 탭 상태 (전환 전)", "PASSED", shot)
 
@@ -262,7 +269,9 @@ def test_scenario_8_menu_validation(driver, ss, reporter):
         
         # 3️⃣ 확인 완료 후 홈으로 복귀 (다음 테스트를 위해)
         driver.back()
-        time.sleep(1)
+        WebDriverWait(driver, 10).until(
+            lambda d: _try_find(d, "//*[@text='홈']")
+        )
         print("[완료] 시나리오 8 성공")
 
 

@@ -40,15 +40,14 @@ class BasePage:
                 element = self.wait_for_element(xpath, timeout=5)
                 element.click()
                 print(f"[OK] 클릭 성공: {step_name}")
-                time.sleep(0.2)
                 if self.ss:
                     self.ss(step_name.replace(" ", "_"))
                 return
             except Exception as e:
                 last_exc = e
                 if attempt == 0 and isinstance(e, StaleElementReferenceException):
-                    print(f"[WARN] '{step_name}' StaleElement — 0.5초 후 재시도...")
-                    time.sleep(0.5)
+                    print(f"[WARN] '{step_name}' StaleElement — 재시도...")
+                    time.sleep(0.3)
                 else:
                     break
 
@@ -145,6 +144,18 @@ class BasePage:
         actions.w3c_actions.pointer_action.click()
         actions.perform()
 
-        time.sleep(1)
         if self.ss:
             self.ss(step_name.replace(" ", "_"))
+
+    def scroll_to_bottom(self, max_swipes=12):
+        """페이지 최하단까지 스크롤 (내용이 더 없을 때까지)"""
+        prev_source = None
+        for i in range(max_swipes):
+            current_source = self.driver.page_source
+            if current_source == prev_source:
+                print(f"[OK] 최하단 도달 ({i}회 스크롤)")
+                break
+            prev_source = current_source
+            self._swipe(from_y_ratio=0.8, to_y_ratio=0.2, times=1)
+        else:
+            print(f"[OK] 최하단 스크롤 완료 (최대 {max_swipes}회)")

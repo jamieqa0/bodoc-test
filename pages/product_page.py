@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from pages.base_page import BasePage
 from selenium.common.exceptions import TimeoutException
-import time
+from selenium.webdriver.support.ui import WebDriverWait
+from appium.webdriver.common.appiumby import AppiumBy
 
 class ProductPage(BasePage):
     PRODUCT_TAB  = "//*[@text='상품']"
@@ -11,7 +12,10 @@ class ProductPage(BasePage):
     def go_product(self, ss_func=None, reporter=None):
         self.wait_for_home()
         self.click(self.PRODUCT_TAB, "Move_To_Product_Tab")
-        time.sleep(1)
+        # 탭 전환 후 상품 탭 콘텐츠가 로드될 때까지 대기
+        WebDriverWait(self.driver, 10).until(
+            lambda d: d.find_elements(AppiumBy.XPATH, self.PRODUCT_TAB)
+        )
         if ss_func:
             shot = ss_func("ProductTab_Entry")
             if reporter:
@@ -21,7 +25,7 @@ class ProductPage(BasePage):
         """상품 탭 주요 요소를 순차적으로 확인"""
         # 1️⃣ 화면을 스크롤하며 대상 요소 탐색
         if reporter:
-            reporter.step(f"화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}")
+            reporter.step(f"화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}", "INFO")
         self.scroll_to_text(self.TARGET_TEXT)
 
         # 2️⃣ "보닥 회원만을 위한 추천 상품" 타이틀 노출 확인
