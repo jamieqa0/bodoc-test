@@ -26,14 +26,12 @@ class HomePage(BasePage):
             try:
                 if needs_scroll:
                     self.scroll_to_text(kor_name)
-                
-                self.wait_for_element(xpath, timeout=5)
+
+                self.wait_for_element(xpath, timeout=3)
                 print(f"[OK] 요소 확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "PASSED")
-                    if ss_func:
-                        shot = ss_func(f"S3_Elem_{eng_id}")
-                        reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+                    shot = ss_func(f"S3_Elem_{eng_id}") if ss_func else None
+                    reporter.step(f"요소 확인: {kor_name}", "PASSED", shot)
             except Exception:
                 print(f"[WARN] 요소 미확인: {kor_name}")
                 if reporter:
@@ -41,24 +39,21 @@ class HomePage(BasePage):
                     reporter.step(f"요소 확인: {kor_name}", "FAILED", shot)
 
         # 2. 하단에 위치하거나 보험 리스트 너머에 있는 요소들 (스크롤하며 확인)
+        # max_swipes=5: 요소가 없을 때 최대 ~10초 이내로 포기 (기본 30회 → 150초+ 방지)
         bottom_checks = [
             ("Hidden_Insurance_Money", "숨은 보험금", "//*[contains(@text,'숨은 보험금')]"),
             ("Consult_Adjuster", "손해사정사", "//*[contains(@text,'손해사정사')]"),
             ("Add_Insurance_Btn", "내 보험 추가", "//*[contains(@text,'내 보험 추가') or contains(@text,'보험 추가')]"),
         ]
-        
+
         for eng_id, kor_name, xpath in bottom_checks:
             try:
-                # UiScrollable 로직으로 대상을 찾을 때까지 스크롤
-                self.scroll_to_text(kor_name)
-                
-                self.wait_for_element(xpath, timeout=3)
+                self.scroll_to_text(kor_name, max_swipes=5)
+                self.wait_for_element(xpath, timeout=2)
                 print(f"[OK] 하단 요소 확인: {kor_name}")
                 if reporter:
-                    reporter.step(f"하단 요소 확인: {kor_name}", "PASSED")
-                    if ss_func:
-                        shot = ss_func(f"S3_Elem_Bottom_{eng_id}")
-                        reporter.step(f"스크린샷: {kor_name} (하단)", "PASSED", shot)
+                    shot = ss_func(f"S3_Elem_Bottom_{eng_id}") if ss_func else None
+                    reporter.step(f"하단 요소 확인: {kor_name}", "PASSED", shot)
             except Exception:
                 print(f"[WARN] 하단 요소 미확인: {kor_name}")
                 if reporter:

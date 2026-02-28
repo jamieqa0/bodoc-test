@@ -101,19 +101,25 @@ class BasePage:
 
         print(f"[OK] 위로 스크롤 {times}회 완료")
 
-    def scroll_to_text(self, text):
-        """텍스트가 보일 때까지 스크롤 (Android UiScrollable 사용)"""
-        print(f"> '{text}' 요소를 찾는 중 (스크롤)...")
+    def scroll_to_text(self, text, max_swipes=8):
+        """텍스트가 보일 때까지 스크롤 (Android UiScrollable 사용)
+
+        Args:
+            max_swipes: 최대 스와이프 횟수 (기본 8). 기본값 30에서 줄여
+                        요소가 없을 때의 타임아웃을 ~20초 이내로 제한.
+        """
+        print(f"> '{text}' 요소를 찾는 중 (스크롤, 최대 {max_swipes}회)...")
         try:
             self.driver.find_element(
                 AppiumBy.ANDROID_UIAUTOMATOR,
                 f'new UiScrollable(new UiSelector().scrollable(true).instance(0))'
+                f'.setMaxSearchSwipes({max_swipes})'
                 f'.scrollIntoView(new UiSelector().textContains("{text}").instance(0))'
             )
             time.sleep(0.5)
             print(f"[OK] '{text}' 발견!")
         except Exception as e:
-            print(f"[WARN] '{text}' 스크롤 찾기 실패: {e}")
+            print(f"[WARN] '{text}' 스크롤 찾기 실패 ({max_swipes}회 시도): {e}")
             self.scroll_down(2)
 
     def tap_coordinate(self, x_ratio, y_ratio, step_name="Tap"):

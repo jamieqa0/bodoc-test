@@ -122,7 +122,6 @@ def test_scenario_3_home_tab(driver, ss, reporter):
         reporter.step("홈 탭 진입", "PASSED", shot)
 
         home.verify_home_elements(ss, reporter)
-        home.scroll_to_bottom(ss, reporter)
 
         print("[완료] 시나리오 3 성공")
 
