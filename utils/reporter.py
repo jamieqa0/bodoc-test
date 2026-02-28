@@ -786,8 +786,7 @@ class TestReporter:
         self._current["end"] = datetime.now().strftime('%H:%M:%S')
         self._current["duration"] = round(time.time() - self._current.get("start_ts", time.time()), 1)
         if error:
-            # 에러 메시지가 너무 길면 잘릴 수 있으므로 최대한 보관
-            self._current["error"] = str(error)
+            self._current["error"] = str(error)[:3000]
         
         self.data["scenarios"].append(self._current)
         self.data["summary"]["total"] += 1

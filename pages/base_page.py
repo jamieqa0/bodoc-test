@@ -4,6 +4,7 @@ from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import StaleElementReferenceException
 
 
 # #3: 테스트 프레임워크(pytest)에 의존하지 않는 커스텀 예외
@@ -45,7 +46,7 @@ class BasePage:
                 return
             except Exception as e:
                 last_exc = e
-                if attempt == 0 and "stale" in str(e).lower():
+                if attempt == 0 and isinstance(e, StaleElementReferenceException):
                     print(f"[WARN] '{step_name}' StaleElement — 0.5초 후 재시도...")
                     time.sleep(0.5)
                 else:
@@ -69,36 +70,27 @@ class BasePage:
         # #3: pytest.fail() 대신 커스텀 예외 → 상위(scenario_context)에서 처리
         raise ElementInteractionError(f"클릭 실패: {step_name} — {last_exc}")
 
-    def scroll_down(self, times=1):
-        """화면 아래로 스크롤 (기본 1회)"""
+    def _swipe(self, from_y_ratio, to_y_ratio, times):
+        """수직 스와이프 내부 헬퍼. scroll_down/scroll_up 에서 사용."""
         size = self.driver.get_window_size()
         w, h = size['width'], size['height']
-
         for _ in range(times):
             actions = ActionChains(self.driver)
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.8)
+            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * from_y_ratio)
             actions.w3c_actions.pointer_action.pointer_down()
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.2)
+            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * to_y_ratio)
             actions.w3c_actions.pointer_action.pointer_up()
             actions.perform()
             time.sleep(0.5)
 
+    def scroll_down(self, times=1):
+        """화면 아래로 스크롤 (기본 1회)"""
+        self._swipe(from_y_ratio=0.8, to_y_ratio=0.2, times=times)
         print(f"[OK] 아래로 스크롤 {times}회 완료")
 
     def scroll_up(self, times=1):
         """화면 위로 스크롤 (기본 1회)"""
-        size = self.driver.get_window_size()
-        w, h = size['width'], size['height']
-
-        for _ in range(times):
-            actions = ActionChains(self.driver)
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.2)
-            actions.w3c_actions.pointer_action.pointer_down()
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.8)
-            actions.w3c_actions.pointer_action.pointer_up()
-            actions.perform()
-            time.sleep(0.5)
-
+        self._swipe(from_y_ratio=0.2, to_y_ratio=0.8, times=times)
         print(f"[OK] 위로 스크롤 {times}회 완료")
 
     def scroll_to_text(self, text, max_swipes=8):
@@ -130,8 +122,6 @@ class BasePage:
             max_scrolls: 최대 스크롤 횟수. 초과 시 마지막으로 wait_for_element 시도.
             check_timeout: 각 체크당 대기 시간(초). 짧을수록 빠름.
         """
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
         for i in range(max_scrolls):
             try:
                 return WebDriverWait(self.driver, check_timeout).until(

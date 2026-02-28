@@ -4,7 +4,10 @@ import time
 
 
 class DiagnosisPage(BasePage):
-    DIAGNOSIS_TAB = "//*[@text='진단']"
+    DIAGNOSIS_TAB  = "//*[@text='진단']"
+    PREMIUM_TAB    = "//*[contains(@text,'내 보험료') or contains(@text,'내보험료')]"
+    PREMIUM_TITLE  = "//*[contains(@text,'매월 내는 보험료')]"
+    PREMIUM_VALUE  = "//*[contains(@text,'원') and string-length(@text) > 2]"
 
     def go_diagnosis(self, ss_func=None, reporter=None):
         self.wait_for_home()
@@ -55,10 +58,9 @@ class DiagnosisPage(BasePage):
         
         # 2️⃣ '내 보험료' 탭 클릭
         # 탭 텍스트가 보이는지 대기 후 클릭 시도
-        PREMIUM_TAB = "//*[contains(@text,'내 보험료') or contains(@text,'내보험료')]"
         try:
-            self.wait_for_element(PREMIUM_TAB, timeout=5)
-            self.click(PREMIUM_TAB, "Move_To_Premium_Tab")
+            self.wait_for_element(self.PREMIUM_TAB, timeout=5)
+            self.click(self.PREMIUM_TAB, "Move_To_Premium_Tab")
         except Exception as e:
             print(f"[WARN] 탭 텍스트 클릭 실패, 좌표로 시도합니다: {e}")
             # 우상단 두 번째 탭 위치 추정 (화면 너비의 75% 부근)
@@ -71,17 +73,14 @@ class DiagnosisPage(BasePage):
             reporter.step("'내 보험료' 탭 진입", "PASSED", shot)
         
         # 3️⃣ '매월 내는 보험료' 타이틀 노출 확인
-        PREMIUM_TITLE = "//*[contains(@text,'매월 내는 보험료')]"
-        PREMIUM_VALUE = "//*[contains(@text,'원') and string-length(@text) > 2]"
-        
         try:
-            self.wait_for_element(PREMIUM_TITLE, timeout=5)
+            self.wait_for_element(self.PREMIUM_TITLE, timeout=5)
             print("[OK] '매월 내는 보험료' 타이틀 확인")
             if reporter:
                 reporter.step("'매월 내는 보험료' 타이틀 확인", "PASSED")
-            
+
             # 4️⃣ 실제 보험료 금액 추출 및 확인
-            val_el = self.wait_for_element(PREMIUM_VALUE, timeout=5)
+            val_el = self.wait_for_element(self.PREMIUM_VALUE, timeout=5)
             amount_text = val_el.text
             print(f"[OK] 보험료 금액 확인됨: {amount_text}")
             
