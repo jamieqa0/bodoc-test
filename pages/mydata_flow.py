@@ -1,5 +1,7 @@
 from pages.base_page import BasePage
-import time
+from appium.webdriver.common.appiumby import AppiumBy
+from selenium.webdriver.support.ui import WebDriverWait
+
 
 class MydataFlow(BasePage):
     # Locators
@@ -9,6 +11,12 @@ class MydataFlow(BasePage):
     CONFIRM_BUTTON        = "//*[contains(@text, '확인')]"
     GET_DIAGNOSIS_BUTTON  = "//*[contains(@text, '진단받기')]"
     CHAT_X_BUTTON         = "//android.widget.ImageView[contains(@content-desc, '닫기')] | //*[@text='X']"
+    # 연결 완료 후 나타나는 UI 요소들 (진단받기·완료·확인 등)
+    CONNECTION_DONE_XPATH = (
+        "//*[contains(@text,'연결 완료') or contains(@text,'수집 완료') "
+        "or contains(@text,'완료되었습니다') or contains(@text,'진단받기') "
+        "or contains(@text,'확인')]"
+    )
 
     def click_connect_40(self):
         print("> 보험사 연결 화면 하단으로 스크롤 중...")
@@ -23,12 +31,17 @@ class MydataFlow(BasePage):
         self.scroll_down()
         self.click(self.AGREE_CONTINUE_BUTTON, "S5_Agree_Continue")
 
-    def wait_for_connection(self):
-        print("> 데이터 연결 및 수집 대기 중 (40초)...")
-        for i in range(8):
-            time.sleep(5)
-            self.driver.execute_script('mobile: unlock')
-            print(f"> 대기 중... ({(i+1)*5}/40초)")
+    def wait_for_connection(self, timeout=90):
+        """마이데이터 수집 완료 대기.
+        완료·확인·진단받기 텍스트가 나타날 때까지 최대 timeout 초 대기한다."""
+        print(f"> 마이데이터 연결 대기 중 (최대 {timeout}초)...")
+
+        def _done(d):
+            d.execute_script('mobile: unlock')
+            return d.find_elements(AppiumBy.XPATH, self.CONNECTION_DONE_XPATH)
+
+        WebDriverWait(self.driver, timeout).until(_done)
+        print("[OK] 마이데이터 연결 완료 감지")
 
     def click_final_confirms(self):
         self.click(self.CONFIRM_BUTTON, "S5_Result_Confirm_1st")
@@ -43,7 +56,15 @@ class MydataFlow(BasePage):
                 print(f"  [추가동의 {i+1}] '동의하고 계속하기' 발견 → 클릭")
                 self.scroll_down()
                 self.click(self.AGREE_CONTINUE_BUTTON, f"S5_ExtraAgree_{i+1}")
-                time.sleep(1.5)
+                # 다음 약관 화면 또는 다음 단계 UI가 안정될 때까지 대기
+                try:
+                    WebDriverWait(self.driver, 5).until(
+                        lambda d: not d.find_elements(
+                            AppiumBy.XPATH, self.AGREE_CONTINUE_BUTTON
+                        )
+                    )
+                except Exception:
+                    pass
             except Exception:
                 print(f"  [추가동의] 더 이상 동의 화면 없음 (총 {i}회 처리 완료)")
                 break

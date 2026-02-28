@@ -122,6 +122,16 @@ def test_scenario_2_kakao_login(driver, ss, reporter):
             reporter.step("로그인 완료 및 홈 화면 전환 확인", "FAILED", shot)
             raise AssertionError("로그인 후 홈 화면으로 이동하지 않았습니다.")
 
+        # 9️⃣ 로그인 상태 최종 검증 — 하단 탭바 5개 노출 확인
+        try:
+            login.verify_logged_in()
+            shot = ss("S2_9_LoggedIn_TabBar_Verified")
+            reporter.step("하단 탭바(홈·진단·상품·건강·보상) 노출 확인 — 로그인 상태 검증", "PASSED", shot)
+        except AssertionError as e:
+            shot = ss("S2_9_FAIL_TabBar_Missing")
+            reporter.step(f"로그인 상태 검증 실패: {e}", "FAILED", shot)
+            raise
+
         print("[완료] 시나리오 2 성공")
 
 
@@ -278,7 +288,6 @@ def test_scenario_8_menu_validation(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 10 : 홈 탭에서 마이데이터 연동
 # ══════════════════════════════════════════════════════════════════
-@pytest.mark.skip(reason="시나리오10 작업 중 — 일시 비활성화")
 def test_scenario_10_mydata(driver, ss, reporter):
     """홈 탭 → 내 보험 추가하기:
     홈 탭 → 내 보험 추가하기 → 40개 연결 → 네이버 인증 → 약관 → 진단받기 → 채팅 종료"""
@@ -297,11 +306,16 @@ def test_scenario_10_mydata(driver, ss, reporter):
             if _try_find(driver, "//*[@text='홈']"):
                 break
             driver.press_keycode(4)
-            time.sleep(0.7)
+            try:
+                WebDriverWait(driver, 2).until(
+                    lambda d: _try_find(d, "//*[@text='홈']")
+                )
+                break
+            except Exception:
+                pass
 
-        # 2️⃣ 홈 탭 진입
+        # 2️⃣ 홈 탭 진입 (go_home 내부 wait_for_home이 홈 노출을 보장)
         home.go_home()
-        time.sleep(1)
         shot = ss("S10_2_Entry_HomeTab")
         reporter.step("홈 탭 진입", "PASSED", shot)
 

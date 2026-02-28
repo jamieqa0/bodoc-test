@@ -36,6 +36,21 @@ class LoginPage(BasePage):
             self.ss("Scenario1_05_LoginHome_Visible")
         assert element.is_displayed()
 
+    def verify_logged_in(self):
+        """로그인 완료 후 하단 탭바 5개(홈·진단·상품·건강·보상) 노출 확인.
+        모든 탭이 보여야 정상 로그인 상태로 간주한다."""
+        tabs = ['홈', '진단', '상품', '건강', '보상']
+        for tab in tabs:
+            try:
+                WebDriverWait(self.driver, 5).until(
+                    lambda d, t=tab: d.find_elements(
+                        AppiumBy.XPATH, f"//*[@text='{t}']"
+                    )
+                )
+                print(f"[OK] 탭 '{tab}' 확인")
+            except Exception:
+                raise AssertionError(f"로그인 후 하단 탭 '{tab}'이 표시되지 않습니다.")
+
     # ── 웹뷰 헬퍼 ─────────────────────────────────────────────
     def _switch_to_webview(self):
         """WEBVIEW 컨텍스트로 전환. 성공 시 True."""
