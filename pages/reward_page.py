@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from pages.base_page import BasePage
 from selenium.common.exceptions import TimeoutException
-import time
+from selenium.webdriver.support.ui import WebDriverWait
+from appium.webdriver.common.appiumby import AppiumBy
 
 class RewardPage(BasePage):
     REWARD_TAB   = "//*[@text='보상']"
@@ -20,7 +21,10 @@ class RewardPage(BasePage):
     def go_reward(self, ss_func=None, reporter=None):
         self.wait_for_home()
         self.click(self.REWARD_ICON, "Move_To_Reward_Tab")
-        time.sleep(1.5)
+        # 탭 전환 후 보상 탭 콘텐츠가 로드될 때까지 대기
+        WebDriverWait(self.driver, 10).until(
+            lambda d: d.find_elements(AppiumBy.XPATH, self.REWARD_TAB)
+        )
         if ss_func:
             shot = ss_func("RewardTab_Entry")
             if reporter:
@@ -30,7 +34,7 @@ class RewardPage(BasePage):
         """보상 탭 주요 요소를 순차적으로 확인"""
         # 1️⃣ 스크롤하며 대상 탐색
         if reporter:
-            reporter.step(f"화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}")
+            reporter.step(f"화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}", "INFO")
         self.scroll_to_text("보상 사례")
 
         # 2️⃣ 해당 타이틀 영역 노출 확인

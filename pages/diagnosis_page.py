@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from pages.base_page import BasePage
 import time
+from selenium.webdriver.support.ui import WebDriverWait
+from appium.webdriver.common.appiumby import AppiumBy
 
 
 class DiagnosisPage(BasePage):
@@ -12,7 +14,10 @@ class DiagnosisPage(BasePage):
     def go_diagnosis(self, ss_func=None, reporter=None):
         self.wait_for_home()
         self.click(self.DIAGNOSIS_TAB, "DiagnosisTab_Move")
-        time.sleep(1)
+        # 탭 전환 후 진단 탭 콘텐츠 로드 대기
+        WebDriverWait(self.driver, 10).until(
+            lambda d: d.find_elements(AppiumBy.XPATH, self.DIAGNOSIS_TAB)
+        )
         if ss_func:
             shot = ss_func("DiagnosisTab_Entry")
             if reporter:
@@ -51,22 +56,25 @@ class DiagnosisPage(BasePage):
     def verify_insurance_premium(self, ss_func=None, reporter=None):
         """'내 보험료' 탭으로 이동하여 보험료 금액이 표시되는지 확인"""
         print("> '내 보험료' 탭 찾는 중 (상단)...")
-        
-        # 1️⃣ 상단 탭 영역으로 이동하기 위해 위로 스크롤
+
+        # 1️⃣ 상단 탭 영역으로 이동하기 위해 위로 스크롤 후 탭 등장 대기
         self.scroll_up(3)
-        time.sleep(2)
-        
+        WebDriverWait(self.driver, 10).until(
+            lambda d: d.find_elements(AppiumBy.XPATH, self.PREMIUM_TAB)
+            or d.find_elements(AppiumBy.XPATH, self.DIAGNOSIS_TAB)
+        )
+
         # 2️⃣ '내 보험료' 탭 클릭
-        # 탭 텍스트가 보이는지 대기 후 클릭 시도
         try:
             self.wait_for_element(self.PREMIUM_TAB, timeout=5)
             self.click(self.PREMIUM_TAB, "Move_To_Premium_Tab")
         except Exception as e:
             print(f"[WARN] 탭 텍스트 클릭 실패, 좌표로 시도합니다: {e}")
-            # 우상단 두 번째 탭 위치 추정 (화면 너비의 75% 부근)
-            # 단말기마다 다를 수 있으므로 화면 너비의 대략 0.5 ~ 0.75 위치를 시도
             self.tap_coordinate(0.75, 0.15, "Tap_Premium_Tab_Fallback")
-            time.sleep(1.5)
+            # 좌표 탭 후 타이틀 등장 대기
+            WebDriverWait(self.driver, 8).until(
+                lambda d: d.find_elements(AppiumBy.XPATH, self.PREMIUM_TITLE)
+            )
         
         shot = ss_func("S4_6_Diagnosis_Premium_Tab_Entry") if ss_func else None
         if reporter:
