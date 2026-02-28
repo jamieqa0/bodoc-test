@@ -138,6 +138,10 @@ _HTML = r"""<!DOCTYPE html>
   #lb.on { display: flex; }
   #lb img { max-width: 95%; max-height: 95%; }
   
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; display: inline-block; flex-shrink: 0; }
+  .dot.on  { background: var(--success); box-shadow: 0 0 6px rgba(46,204,113,0.5); }
+  .dot.off { background: var(--danger);  box-shadow: 0 0 6px rgba(255,71,87,0.3); }
+
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
 </style>
@@ -284,11 +288,14 @@ let _runningID = null;
 
 function esc(str) { return str ? str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : ""; }
 
-async function api(path) {
+async function api(path, timeout=5000) {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), timeout);
     try {
-        const r = await fetch(API + path + (path.includes('?') ? '&' : '?') + 't=' + Date.now());
+        const r = await fetch(API + path + (path.includes('?') ? '&' : '?') + 't=' + Date.now(), { signal: ctrl.signal });
+        clearTimeout(tid);
         return r.ok ? await r.json() : null;
-    } catch(e) { return null; }
+    } catch(e) { clearTimeout(tid); return null; }
 }
 
 function setFilter(f) {
@@ -333,9 +340,11 @@ async function refreshDashboard() {
 }
 
 async function updateStatus() {
-    const s = await api('/api/appium/status');
-    const d = await api('/api/device/status');
-    const t = await api('/api/test/status');
+    const [s, d, t] = await Promise.all([
+        api('/api/appium/status'),
+        api('/api/device/status'),
+        api('/api/test/status'),
+    ]);
 
     if(s) {
         const adot = document.getElementById('appium-dot');
@@ -386,7 +395,13 @@ async function updateStatus() {
     }
 
     const dashSys = document.getElementById('dash-sys-status');
-    if(dashSys) dashSys.innerHTML = `Appium 서버: <b style="color:${s&&s.running?'var(--success)':'var(--danger)'}">${s&&s.running?'작동 중':'중지됨'}</b><br>연결 기기: <b>${d?d.count:'0'}</b>대<br>테스트 상태: ${_isRunning?'<b style="color:var(--warning)">진행 중...</b>':'<b style="color:#888">대기</b>'}`;
+    if(dashSys) {
+        if(!s && !d && !t) {
+            dashSys.innerHTML = '<span style="color:var(--danger)">⚠️ 서버에 응답 없음 (타임아웃) — Appium 및 서버 상태를 확인하세요.</span>';
+        } else {
+            dashSys.innerHTML = `Appium 서버: <b style="color:${s&&s.running?'var(--success)':'var(--danger)'}">${s&&s.running?'작동 중':'중지됨'}</b><br>연결 기기: <b>${d?d.count:'0'}</b>대<br>테스트 상태: ${_isRunning?'<b style="color:var(--warning)">진행 중...</b>':'<b style="color:#888">대기</b>'}`;
+        }
+    }
 }
 
 async function renderScenarioGrid() {
@@ -430,7 +445,7 @@ async function loadResults() {
     if(!data) {
         try {
             const raw = document.getElementById('reports-data').textContent;
-            if(raw && !raw.includes('__REPORTS_JSON__')) {
+            if(raw && raw.trim().startsWith('[')) {
                 data = JSON.parse(raw);
             }
         } catch(e) {}
@@ -471,13 +486,21 @@ function showReportByID(id) {
     if(r) showReport(r, document.querySelector(`.res-item[data-runid="${id}"]`));
 }
 
+function fmtDuration(secs) {
+    if (!secs) return '-';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = Math.floor(secs % 60);
+    return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+}
+
 function showReport(r, el) {
     document.querySelectorAll('.res-item').forEach(i=>i.classList.remove('active'));
     if(el) el.classList.add('active');
     
     const det = document.getElementById('rpt-detail');
     const cards = (r.scenarios || []).map(s => {
-        const duration = s.duration ? `(${s.duration}s)` : "";
+        const duration = s.duration ? `(${fmtDuration(s.duration)})` : "";
         const steps = (s.steps||[]).map(st => `
             <div style="margin-bottom:12px;">
                 <div style="display:flex; gap:8px;">
@@ -504,7 +527,8 @@ function showReport(r, el) {
     det.innerHTML = `
         <div class="report-header">
             <h2 style="font-size:20px;">실행 리포트 (Execution Report)</h2>
-            <div style="font-size:11px; color:#888; margin-top:5px;">실행 ID: ${r.run_id} | 일시: ${r.date} ${r.time} ${r.duration ? ` | 총 소요시간: ${r.duration}초` : ''}</div>
+            <div style="font-size:11px; color:#888; margin-top:5px;">실행 ID: ${r.run_id} | 일시: ${r.date} ${r.time} ${r.duration ? ` | 총 소요시간: ${fmtDuration(r.duration)}` : ''}</div>
+        ${(r.device && (r.device.model || r.device.android)) ? `<div style="font-size:11px; color:#888; margin-top:3px;">연결 기기: ${r.device.model || '-'} | Android ${r.device.android || '-'}</div>` : ''}
             <div style="display:flex; gap:15px; margin-top:12px;">
                 <span style="font-size:13px">전체 시나리오: <b>${r.summary.total}</b></span>
                 <span style="font-size:13px; color:var(--success)">성공: <b>${r.summary.passed}</b></span>
@@ -543,11 +567,15 @@ function openImg(src) { event.stopPropagation(); const lb=document.getElementByI
 async function startAppium() { await api('/api/appium/start'); }
 async function stopAppium() { await api('/api/appium/stop'); }
 
-async function init() {
-    const env = await api('/api/env');
-    if(env) document.getElementById('env-info').innerHTML = `Python: ${env.python}<br>Pytest: ${env.pytest}<br>Ver: 1.3.3 Analysis`;
-    updateStatus(); await refreshDashboard();
-    setInterval(pollLogs, 1000); setInterval(updateStatus, 3000);
+function init() {
+    // 개별 API 호출은 독립적으로 실행 — 어느 하나가 느려도 UI 전체를 블로킹하지 않음
+    api('/api/env').then(env => {
+        if(env) document.getElementById('env-info').innerHTML = `Python: ${env.python}<br>Pytest: ${env.pytest}<br>Ver: 1.3.3 Analysis`;
+    });
+    updateStatus();
+    refreshDashboard();
+    setInterval(pollLogs, 1000);
+    setInterval(updateStatus, 3000);
 }
 init();
 </script>
@@ -568,6 +596,7 @@ class TestReporter:
             "date": datetime.now().strftime('%Y-%m-%d'),
             "time": datetime.now().strftime('%H:%M:%S'),
             "duration": 0,
+            "device": {"model": "", "android": ""},
             "scenarios": [],
             "summary": {"total": 0, "passed": 0, "failed": 0},
         }
@@ -602,6 +631,9 @@ class TestReporter:
         if status == "PASSED": self.data["summary"]["passed"] += 1
         else: self.data["summary"]["failed"] += 1
         self._current = None
+
+    def set_device(self, model, android):
+        self.data["device"] = {"model": model, "android": android}
 
     def save(self):
         self.data["duration"] = round(time.time() - self._start, 1)

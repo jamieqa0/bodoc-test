@@ -46,6 +46,18 @@ def driver_setup(reporter):
             lambda d: d.current_package == CAPABILITIES['appPackage']
         )
         print("[OK] 앱 연결 성공!")
+        try:
+            info = driver.execute_script('mobile: deviceInfo')
+            model = info.get('model', '') if isinstance(info, dict) else ''
+            android_ver = info.get('platformVersion', '') if isinstance(info, dict) else ''
+            if not (model or android_ver):
+                caps = driver.capabilities
+                model = caps.get('deviceModel', '')
+                android_ver = caps.get('platformVersion', '')
+            reporter.set_device(model, android_ver)
+            print(f"[INFO] 기기 정보: {model} | Android {android_ver}")
+        except Exception:
+            pass
         yield driver
     except Exception as e:
         print(f"[ERROR] 드라이버 초기화 실패: {e}")
