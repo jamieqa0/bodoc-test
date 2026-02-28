@@ -86,39 +86,55 @@ def test_scenario_2_kakao_login(driver, ss, reporter):
         shot = ss("S2_4_Entry_LoginScreen")
         reporter.step("로그인 화면 진입 확인", "PASSED", shot)
 
-        # 5️⃣ 카카오 로그인 시작 및 웹뷰 전환 확인
+        # 5️⃣ 카카오 로그인 버튼 클릭 및 웹뷰 전환 확인
         login.start_kakao_login()
         try:
             WebDriverWait(driver, 10).until(
                 lambda d: any('WEBVIEW' in c for c in d.contexts)
             )
             shot = ss("S2_5_Switch_KakaoWebView")
-            reporter.step("카카오 로그인 버튼 클릭 및 웹뷰 전환 확인", "PASSED", shot)
+            reporter.step("카카오 로그인 버튼 클릭 및 웹뷰 컨텍스트 전환 확인", "PASSED", shot)
         except Exception:
             shot = ss("S2_5_FAIL_KakaoWebView")
-            reporter.step("웹뷰 전환 실패", "FAILED", shot)
+            reporter.step("웹뷰 컨텍스트 전환 실패", "FAILED", shot)
             raise AssertionError("카카오 로그인 후 웹뷰로 전환되지 않았습니다.")
 
-        # 6️⃣ 카카오 계속하기 클릭
+        # 5-1. 웹뷰 콘텐츠(버튼/리스트) 로드 완료 대기
+        if login.wait_for_kakao_webview_ready():
+            shot = ss("S2_5b_WebView_Content_Ready")
+            reporter.step("카카오 웹뷰 콘텐츠 로드 확인", "PASSED", shot)
+        else:
+            shot = ss("S2_5b_WARN_WebView_Content")
+            reporter.step("카카오 웹뷰 콘텐츠 로드 미확인 (계속 진행)", "WARN", shot)
+
+        # 6️⃣ 카카오 '계속하기' 클릭 → 계정 선택 화면 진입 확인
         login.click_kakao_continue()
-        shot = ss("S2_6_Switch_After_Continue")
-        reporter.step("카카오 '계속하기' 클릭", "PASSED", shot)
+        if login.verify_account_screen_visible():
+            shot = ss("S2_6_AccountList_Visible")
+            reporter.step("카카오 '계속하기' 클릭 → 계정 선택 화면 진입 확인", "PASSED", shot)
+        else:
+            shot = ss("S2_6_WARN_AccountList")
+            reporter.step("계정 선택 화면 미확인 (계속 진행)", "WARN", shot)
 
-        # 7️⃣ 카카오 계정 선택
+        # 7️⃣ 카카오 계정 선택 → OAuth 인증 처리 대기
         login.select_first_kakao_account()
-        shot = ss("S2_7_Switch_After_Account_Select")
-        reporter.step("카카오 계정 선택 완료", "PASSED", shot)
+        if login.wait_for_auth_redirect():
+            shot = ss("S2_7_Auth_Redirect_Confirmed")
+            reporter.step("카카오 계정 선택 → 인증 처리 확인 (웹뷰 종료)", "PASSED", shot)
+        else:
+            shot = ss("S2_7_WARN_Auth_Redirect")
+            reporter.step("인증 처리 신호 미감지 (계속 진행)", "WARN", shot)
 
-        # 8️⃣ 로그인 완료 후 홈 화면 전환 대기 및 확인
+        # 8️⃣ 홈 화면 전환 최종 확인
         try:
-            WebDriverWait(driver, 15).until(
+            WebDriverWait(driver, 20).until(
                 EC.presence_of_element_located((AppiumBy.XPATH, "//*[@text='홈']"))
             )
-            shot = ss("S2_8_Switch_HomeTab_Reached")
-            reporter.step("로그인 완료 및 홈 화면 전환 확인", "PASSED", shot)
+            shot = ss("S2_8_HomeTab_Reached")
+            reporter.step("로그인 완료 및 홈 화면 전환 최종 확인", "PASSED", shot)
         except Exception:
             shot = ss("S2_8_FAIL_HomeTab_Not_Reached")
-            reporter.step("로그인 완료 및 홈 화면 전환 확인", "FAILED", shot)
+            reporter.step("홈 화면 전환 실패", "FAILED", shot)
             raise AssertionError("로그인 후 홈 화면으로 이동하지 않았습니다.")
 
         print("[완료] 시나리오 2 성공")
