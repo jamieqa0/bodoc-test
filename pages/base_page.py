@@ -122,6 +122,27 @@ class BasePage:
             print(f"[WARN] '{text}' 스크롤 찾기 실패 ({max_swipes}회 시도): {e}")
             self.scroll_down(2)
 
+    def scroll_until_visible(self, xpath, max_scrolls=10, check_timeout=1):
+        """scroll_down + XPath 체크를 반복해 요소를 찾는다 (UiScrollable 미사용).
+        UiScrollable이 느린 기기에서 대체 수단으로 사용한다.
+
+        Args:
+            max_scrolls: 최대 스크롤 횟수. 초과 시 마지막으로 wait_for_element 시도.
+            check_timeout: 각 체크당 대기 시간(초). 짧을수록 빠름.
+        """
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        for i in range(max_scrolls):
+            try:
+                return WebDriverWait(self.driver, check_timeout).until(
+                    EC.presence_of_element_located((AppiumBy.XPATH, xpath))
+                )
+            except Exception:
+                print(f"> 스크롤 중... ({i + 1}/{max_scrolls})")
+                self.scroll_down(1)
+        # 마지막 시도
+        return self.wait_for_element(xpath, timeout=5)
+
     def tap_coordinate(self, x_ratio, y_ratio, step_name="Tap"):
         """비율 기반 좌표 클릭"""
         size = self.driver.get_window_size()

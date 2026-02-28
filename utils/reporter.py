@@ -398,7 +398,7 @@ async function updateStatus() {
             let prog = '진행 중...';
             if(t.total_count > 0) {
                 const cur = t.current_idx || 0;
-                prog = `시나리오 실행 중 (${cur}/${t.total_count})`;
+                prog = `시나리오 실행 중 (${Math.min(cur + 1, t.total_count)}/${t.total_count})`;
             }
             badge.innerHTML = `<span class="badge" style="background:var(--warning); color:#fff; padding:6px 12px; font-size:12px; border-radius:20px; animation: pulse 2s infinite;">⏳ ${prog}</span>`;
         } else {
@@ -479,7 +479,8 @@ async function renderScenarioGrid() {
     const d = await api('/api/test/definition');
     const list = document.getElementById('scenario-list');
     if(!d || !d.scenarios || !list) return;
-    const sorted = d.scenarios.slice().sort((a,b) => Number(a.id) - Number(b.id));
+    function _scKey(id) { const p=String(id).split('_').map(Number); return (p[0]||0)+(p[1]||0)/100; }
+    const sorted = d.scenarios.slice().sort((a,b) => _scKey(a.id) - _scKey(b.id));
     _scenarioList = sorted.map(s => String(s.id));
     const prevStatus = {..._cardStatus};
     list.innerHTML = '';
@@ -506,7 +507,7 @@ async function renderScenarioGrid() {
             </div>
         `;
         card.querySelector('.s-header').onclick = (e) => { if(e.target.tagName !== 'BUTTON') card.classList.toggle('open'); };
-        card.querySelector('.run-mini-btn').onclick = (e) => { e.stopPropagation(); runTests(s.id); };
+        card.querySelector('.run-mini-btn').onclick = (e) => { e.stopPropagation(); runTests(s.name); };
         list.appendChild(card);
     });
     updateStatus();
@@ -643,7 +644,7 @@ async function pollLogs() {
         // ── 시나리오 결과 실시간 파싱 ─────────────────────────
         // 형식: [INFO] ...::test_scenario_N_name PASSED / [ERROR] ...FAILED / [DEBUG] ...SKIPPED
         d.logs.forEach(l => {
-            const m = l.match(/test_scenario_(\d+)[_\w]* (PASSED|FAILED|SKIPPED)/);
+            const m = l.match(/test_scenario_(\d+(?:_\d+)?)[_a-z]* (PASSED|FAILED|SKIPPED)/);
             if(!m) return;
             const id = m[1];
             const raw = m[2];
@@ -696,9 +697,9 @@ async function syncResultsToCards() {
     if(!latest || !latest.scenarios) return;
     latest.scenarios.forEach(s => {
         // 시나리오 이름에서 번호 추출: "시나리오1_..." 또는 "Scenario 1" 패턴
-        const m = (s.name || '').match(/(?:시나리오|scenario|s)\s*(\d+)/i);
+        const m = (s.name || '').match(/(?:시나리오|scenario|s)\s*(\d+(?:[_-]\d+)?)/i);
         if(!m) return;
-        const id = m[1];
+        const id = m[1].replace('-', '_');
         const st = s.status === 'PASSED' ? 'passed' : s.status === 'SKIPPED' ? 'skipped' : 'failed';
         if(_cardStatus[id] !== st) setCardStatus(id, st);
         // 결과 파일의 duration으로 경과 시간 갱신

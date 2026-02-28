@@ -8,7 +8,16 @@
       "Bash(netstat -ano)",
       "Bash(xargs -I{} powershell -Command \"Stop-Process -Id {} -Force -ErrorAction SilentlyContinue; Write-Host ''killed {}''\")",
       "Bash(export:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(do taskkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(wmic process:*)",
+      "Bash(timeout 8 bash:*)",
+      "Bash(adb devices:*)",
+      "Bash(adb version:*)",
+      "Bash(adb:*)",
+      "Bash(chcp:*)"
     ]
   }
 }

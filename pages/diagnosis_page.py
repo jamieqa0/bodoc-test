@@ -18,23 +18,15 @@ class DiagnosisPage(BasePage):
     def verify_diagnosis_elements(self, ss_func=None, reporter=None):
         # (영문ID, 한글명, XPath)
         checks = [
-            ("Diagnosis_Tab_Nav", "진단 탭 네비게이션", "//*[@text='진단']"),
-            ("Diagnosis_Text_Check", "보험 진단 관련 텍스트", "//*[contains(@text,'진단') or contains(@text,'보험료') or contains(@text,'분석')]"),
+            ("Diagnosis_Tab_Nav",   "진단 탭 네비게이션",    "//*[@text='진단']"),
+            ("Diagnosis_Text_Check","보험 진단 관련 텍스트", "//*[contains(@text,'진단') or contains(@text,'보험료') or contains(@text,'분석')]"),
         ]
         for eng_id, kor_name, xpath in checks:
-            try:
-                self.wait_for_element(xpath, timeout=5)
-                print(f"[OK] 요소 확인: {kor_name}")
-                if reporter:
-                    reporter.step(f"요소 확인: {kor_name}", "PASSED")
-                    if ss_func:
-                        shot = ss_func(f"S4_Elem_{eng_id}")
-                        reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
-            except Exception:
-                print(f"[WARN] 요소 미확인: {kor_name}")
-                if reporter:
-                    shot = ss_func(f"S4_FAIL_{eng_id}") if ss_func else None
-                    reporter.step(f"요소 확인: {kor_name}", "FAILED", shot)
+            self.wait_for_element(xpath, timeout=5)
+            shot = ss_func(f"S4_Elem_{eng_id}") if ss_func else None
+            if reporter:
+                reporter.step(f"요소 확인: {kor_name}", "PASSED", shot)
+            print(f"[OK] 요소 확인: {kor_name}")
 
     def scroll_to_bottom(self, ss_func=None, reporter=None):
         self.scroll_down(2)
