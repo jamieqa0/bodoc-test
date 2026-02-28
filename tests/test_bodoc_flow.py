@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import pytest
-import time
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -278,7 +277,9 @@ def test_scenario_8_menu_validation(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 10 : 홈 탭에서 마이데이터 연동
 # ══════════════════════════════════════════════════════════════════
-@pytest.mark.skip(reason="시나리오10 작업 중 — 일시 비활성화")
+# ══════════════════════════════════════════════════════════════════
+# 시나리오 10 : 홈 탭에서 마이데이터 연동
+# ══════════════════════════════════════════════════════════════════
 def test_scenario_10_mydata(driver, ss, reporter):
     """홈 탭 → 내 보험 추가하기:
     홈 탭 → 내 보험 추가하기 → 40개 연결 → 네이버 인증 → 약관 → 진단받기 → 채팅 종료"""
@@ -288,7 +289,7 @@ def test_scenario_10_mydata(driver, ss, reporter):
         home = HomePage(driver, ss)
         ins = MydataFlow(driver, ss)
 
-        # 1️⃣ 이전 세션 웹뷰 등 초기화 및 홈 탭 복귀 처리
+        # 1️⃣ 이전 세션 웹뷰 초기화 및 홈 탭 복귀 처리
         try:
             driver.switch_to.context('NATIVE_APP')
         except Exception:
@@ -297,25 +298,39 @@ def test_scenario_10_mydata(driver, ss, reporter):
             if _try_find(driver, "//*[@text='홈']"):
                 break
             driver.press_keycode(4)
-            time.sleep(0.7)
+            # 뒤로가기 키이벤트 처리 후 홈 탭 노출 대기 (최대 1초)
+            try:
+                WebDriverWait(driver, 1).until(
+                    lambda d: _try_find(d, "//*[@text='홈']")
+                )
+                break
+            except Exception:
+                pass
 
         # 2️⃣ 홈 탭 진입
         home.go_home()
-        time.sleep(1)
         shot = ss("S10_2_Entry_HomeTab")
         reporter.step("홈 탭 진입", "PASSED", shot)
 
-        # 3️⃣ '내 보험 추가하기' 클릭 및 연결 화면 진입
+        # 3️⃣ '내 보험 추가하기' 클릭 및 보험 연결 화면 진입 확인
         home.click_add_insurance()
-        shot = ss("S10_3_Entry_Insurance_Connect")
-        reporter.step("내 보험 추가하기 클릭 → 보험 연결 화면 진입", "PASSED", shot)
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: _try_find(d, "//*[contains(@text,'연결') or contains(@text,'보험사')]")
+            )
+            shot = ss("S10_3_Entry_Insurance_Connect")
+            reporter.step("내 보험 추가하기 클릭 → 보험 연결 화면 진입", "PASSED", shot)
+        except Exception:
+            shot = ss("S10_3_FAIL_Insurance_Connect")
+            reporter.step("보험 연결 화면 진입 실패", "FAILED", shot)
+            raise AssertionError("보험 연결 화면으로 이동하지 않았습니다.")
 
-        # 4️⃣ '40개 연결하기' 클릭
+        # 4️⃣ '40개 연결하기' 클릭 (내부에서 다음 화면 진입 대기)
         ins.click_connect_40()
         shot = ss("S10_4_After_Connect40_Click")
         reporter.step("40개 연결하기 클릭", "PASSED", shot)
 
-        # 5️⃣ 네이버 인증서 선택
+        # 5️⃣ 네이버 인증서 선택 (내부에서 약관 화면 진입 대기)
         ins.select_naver_cert()
         shot = ss("S10_5_Entry_Naver_Auth")
         reporter.step("네이버 인증서 선택", "PASSED", shot)
@@ -325,25 +340,27 @@ def test_scenario_10_mydata(driver, ss, reporter):
         shot = ss("S10_6_After_Agree_Click")
         reporter.step("동의하고 계속하기", "PASSED", shot)
 
-        # 7️⃣ 마이데이터 연결 대기
+        # 7️⃣ 마이데이터 연결 대기 (최대 90초, sleep 없이 WebDriverWait 폴링)
         ins.wait_for_connection()
         shot = ss("S10_7_DataConnect_Complete")
         reporter.step("마이데이터 연결 대기 완료", "PASSED", shot)
 
-        # 8️⃣ 결과 확인 화면에서 예/확인 처리
+        # 8️⃣ 결과 확인 화면에서 확인/완료 처리
         ins.click_final_confirms()
         shot = ss("S10_8_Result_Confirm_Complete")
         reporter.step("결과 확인 클릭 완료", "PASSED", shot)
 
-        # 9️⃣ 추가 약관 동의 안내 처리
+        # 9️⃣ 추가 약관 동의 안내 처리 (없으면 무시)
         ins.dismiss_extra_agreements()
         shot = ss("S10_9_Extra_Agree_Complete")
         reporter.step("추가 약관 동의 처리 완료", "PASSED", shot)
 
+        # 🔟 보험 진단받기 클릭 (내부에서 진단 화면 진입 대기)
         ins.get_insurance_diagnosis()
         shot = ss("S10_10_Entry_Diagnosis_Result")
         reporter.step("보험 진단받기 클릭 → 진단 화면 진입", "PASSED", shot)
 
+        # 1️⃣1️⃣ 전문가 채팅 종료
         ins.close_chat()
         shot = ss("S10_11_Chat_Closed")
         reporter.step("전문가 채팅 종료", "PASSED", shot)

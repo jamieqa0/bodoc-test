@@ -93,7 +93,6 @@ class HomePage(BasePage):
         reporter.step("숨은 보험금 노출 확인", "PASSED", shot)
         print("[OK] 숨은 보험금 확인")
         self.scroll_down(1)
-        time.sleep(1)
 
         # 6️⃣ 이런 상황일 때 OR 손해사정사에게
         target_xpath = (
