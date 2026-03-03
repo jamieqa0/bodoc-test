@@ -119,12 +119,30 @@ class LoginPage(BasePage):
 
         NATIVE 컨텍스트에서 계정 요소를 탐색하고,
         실패 시 비율 좌표로 폴백한다. WebView 전환 없음.
+
+        ※ '계속하기' 클릭으로 자동 로그인이 완료되어 이미 홈 화면이
+           표시된 경우, 계정 선택을 건너뛴다 (좌표 폴백 방지).
         """
+        # 이미 홈 화면이면 로그인이 완료된 것이므로 건너뜀
+        try:
+            if self.driver.find_elements(AppiumBy.XPATH, self.HOME_TAB):
+                print("[OK] 이미 홈 화면 — 계정 선택 건너뜀 (자동 로그인 완료)")
+                return
+        except Exception:
+            pass
+
         try:
             self.wait_for_element(self.KAKAO_FIRST_ACCOUNT_NATIVE, timeout=5)
             self.click(self.KAKAO_FIRST_ACCOUNT_NATIVE, "S2_Kakao_Account_Click")
             print("[OK] 첫 번째 카카오 계정 선택 (NATIVE)")
         except Exception:
+            # 대기 중 로그인이 완료됐을 수 있으므로 홈 화면 재확인
+            try:
+                if self.driver.find_elements(AppiumBy.XPATH, self.HOME_TAB):
+                    print("[OK] 대기 중 홈 화면 진입 — 계정 선택 불필요")
+                    return
+            except Exception:
+                pass
             print("[WARN] 계정 목록 미발견 — 좌표 폴백")
             self.tap_coordinate(0.5, 0.35, "S2_Kakao_Account_Tap")
 
