@@ -17,7 +17,10 @@
       "Bash(adb devices:*)",
       "Bash(adb version:*)",
       "Bash(adb:*)",
-      "Bash(chcp:*)"
+      "Bash(chcp:*)",
+      "Bash(C:/Users/Jamie-I/AppData/Local/Programs/Python/Python312/python.exe:*)",
+      "Bash(\"/c/Users/Jamie-I/Downloads/platform-tools/adb.exe\" devices:*)",
+      "Bash(\"/c/Users/Jamie-I/Downloads/platform-tools/adb.exe\":*)"
     ]
   }
 }

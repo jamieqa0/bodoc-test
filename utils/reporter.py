@@ -72,9 +72,13 @@ _HTML = r"""<!DOCTYPE html>
   .badge-danger { background: #fff5f5; color: #e53e3e; }
 
   /* 실행 레이아웃 */
-  .execution-split { display: flex; gap: 20px; height: calc(100vh - 120px); overflow: hidden; }
-  .split-left { width: 440px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; flex-shrink: 0; }
-  .split-right { flex: 1; display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
+  .execution-split { display: flex; gap: 0; height: calc(100vh - 120px); overflow: hidden; }
+  .split-left { flex: none; width: 50%; min-width: 180px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
+  .split-right { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
+  .split-divider { width: 14px; flex-shrink: 0; cursor: col-resize; display: flex; align-items: center; justify-content: center; }
+  .split-divider::after { content: ''; display: block; width: 3px; height: 48px; background: #d1d5db; border-radius: 3px; transition: background 0.15s, height 0.15s; }
+  .split-divider:hover::after { background: var(--brand); height: 64px; }
+  .split-divider.dragging::after { background: var(--brand); height: 80px; }
 
   .s-card { background: #fff; border: 1.2px solid var(--border); border-left-width: 4px; border-radius: 10px; margin-bottom: 8px; overflow: hidden; transition: background 0.25s, border-color 0.25s, box-shadow 0.25s; }
   .s-card.sc-idle    { border-left-color: #d1d5db; }
@@ -104,6 +108,10 @@ _HTML = r"""<!DOCTYPE html>
   .s-badge.sc-done    { background: #f3f4f6; color: #6b7280; }
   .s-elapsed { font-size: 11px; color: #9ca3af; font-family: 'Consolas', monospace; min-width: 56px; text-align: right; }
   .s-elapsed.live { color: #3b82f6; font-weight: 700; }
+  .s-card.sc-user-skip { opacity: 0.45; }
+  .s-card.sc-user-skip .s-name { text-decoration: line-through; color: #9ca3af; }
+  .skip-btn { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; cursor: pointer; border: 1.5px solid #d1d5db; background: #f9fafb; color: #9ca3af; white-space: nowrap; }
+  .skip-btn.skipped { background: #fef9c3; color: #a16207; border-color: #fcd34d; }
 
   .log-box { background: #1e2130; border-radius: 12px; height: 100%; overflow-y: auto; padding: 16px; font-family: 'Consolas', monospace; font-size: 12px; color: #eee; line-height: 1.5; scroll-behavior: smooth; }
   .log-line { border-bottom: 1px solid rgba(255,255,255,0.03); padding: 2px 0; word-break: break-all; }
@@ -214,7 +222,7 @@ _HTML = r"""<!DOCTYPE html>
       <!-- 2. Test Execution -->
       <div class="tab-pane" id="pane-run">
         <div class="execution-split">
-          <div class="split-left">
+          <div class="split-left" id="split-left">
             <div class="card" style="height:100%; display:flex; flex-direction:column;">
               <div class="card-header">
                 <b class="card-title">🧪 테스트 시나리오</b>
@@ -226,6 +234,7 @@ _HTML = r"""<!DOCTYPE html>
               <div id="scenario-list" style="flex:1; overflow-y:auto;"></div>
             </div>
           </div>
+          <div class="split-divider" id="split-divider" title="드래그하여 패널 크기 조절"></div>
           <div class="split-right">
             <div class="card" style="height:100%; display:flex; flex-direction:column;">
               <div class="card-header">
@@ -284,9 +293,20 @@ _HTML = r"""<!DOCTYPE html>
             <div id="device-list" style="font-size:11px; color:#888; margin-top:8px;"></div>
           </div>
           <div class="card"><b class="card-title">⚙️ 실행 환경 정보</b><div id="env-info" style="font-size:11px; line-height:1.6; margin-top:10px;"></div></div>
+          <div class="card">
+            <b class="card-title">🗑️ 이전 결과 삭제</b>
+            <div style="margin-top:10px;">
+              <label style="font-size:11px; color:#888; display:block; margin-bottom:6px;">기준 날짜 이전(포함) 결과를 삭제합니다</label>
+              <input type="date" id="delete-date-input"
+                style="width:100%; box-sizing:border-box; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text-main); font-size:13px; color-scheme:light;" />
+              <button class="btn btn-ghost" style="width:100%; margin-top:8px; color:#e57373;"
+                onclick="deleteResultsByDate()">삭제</button>
+              <div id="delete-result-msg" style="font-size:11px; margin-top:6px; min-height:16px;"></div>
+            </div>
+          </div>
         </div>
         <div class="card" style="height:350px; display:flex; flex-direction:column;">
-          <div class="card-header"><b class="card-title">📋 시스템 통합 로그 (ANSI 정제됨)</b><button class="btn btn-ghost" style="padding:4px 10px; font-size:11px;" onclick="clearLogs('log-panel-set')">비우기</button></div>
+          <div class="card-header"><b class="card-title">📋 시스템 통합 로그</b><button class="btn btn-ghost" style="padding:4px 10px; font-size:11px;" onclick="clearLogs('log-panel-set')">비우기</button></div>
           <div class="log-box" id="log-panel-set"></div>
         </div>
       </div>
@@ -309,8 +329,9 @@ let _cardStatus   = {};  // { id: 'idle'|'running'|'passed'|'failed'|'skipped'|'
 let _cardStart    = {};  // { id: ms } 실행 시작 시각
 let _prevRunning  = false;
 let _prevIdx      = 0;
-const SC_LABEL = { idle:'대기', running:'실행 중', passed:'성공', failed:'실패', skipped:'스킵', done:'완료' };
+const SC_LABEL = { idle:'Idle', running:'Running', passed:'Passed', failed:'Failed', skipped:'Skipped', done:'Done' };
 const SC_ICON  = { idle:'○', running:'▶', passed:'✓', failed:'✗', skipped:'—', done:'●' };
+let _skipSet = new Set(JSON.parse(localStorage.getItem('bodoc_skip') || '[]'));
 
 function esc(str) { return str ? str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : ""; }
 
@@ -357,12 +378,18 @@ async function refreshDashboard() {
 
     const tbody = document.getElementById('dash-history-body');
     tbody.innerHTML = '';
-    _results.slice(0, 5).forEach(r => {
+    if (_results.length === 0) {
         const tr = document.createElement('tr');
-        const ok = r.summary.failed === 0;
-        tr.innerHTML = `<td>${r.date} ${r.time}</td><td style="font-family:monospace; font-size:11px; color:#666;">${r.run_id}</td><td><span class="badge ${ok?'badge-success':'badge-danger'}">${ok?'PASS':'FAIL'}</span></td><td>${r.summary.passed} / ${r.summary.failed}</td><td><button class="run-mini-btn" onclick="switchTab('res'); setTimeout(()=>showReportByID('${r.run_id}'), 100)">상세</button></td>`;
+        tr.innerHTML = `<td colspan="5" style="text-align:center; color:#aaa; padding:20px 0; font-size:13px;">실행 이력이 없습니다</td>`;
         tbody.appendChild(tr);
-    });
+    } else {
+        _results.slice(0, 5).forEach(r => {
+            const tr = document.createElement('tr');
+            const ok = r.summary.failed === 0;
+            tr.innerHTML = `<td>${r.date} ${r.time}</td><td style="font-family:monospace; font-size:11px; color:#666;">${r.run_id}</td><td><span class="badge ${ok?'badge-success':'badge-danger'}">${ok?'PASS':'FAIL'}</span></td><td>${r.summary.passed} / ${r.summary.failed}</td><td><button class="run-mini-btn" onclick="switchTab('res'); setTimeout(()=>showReportByID('${r.run_id}'), 100)">상세</button></td>`;
+            tbody.appendChild(tr);
+        });
+    }
 }
 
 async function updateStatus() {
@@ -459,7 +486,7 @@ async function updateStatus() {
             btn.innerHTML = '<div class="spinner"></div>';
             btn.classList.add('running');
         } else {
-            btn.disabled = _isRunning;
+            btn.disabled = _isRunning || _skipSet.has(id);
             btn.innerHTML = 'Run';
             btn.classList.remove('running');
         }
@@ -489,7 +516,8 @@ async function renderScenarioGrid() {
         const st = prevStatus[id] || 'idle';
         if(!prevStatus[id]) _cardStatus[id] = 'idle';
         const card = document.createElement('div');
-        card.className = 's-card sc-' + st;
+        const skipped = _skipSet.has(id);
+        card.className = 's-card sc-' + st + (skipped ? ' sc-user-skip' : '');
         card.setAttribute('data-id', id);
         const name = s.description ? s.description.split('\n')[0] : s.name;
         card.innerHTML = `
@@ -497,8 +525,9 @@ async function renderScenarioGrid() {
                 <div class="s-info"><span class="s-num">S${esc(id)}</span> <span class="s-name">${esc(name)}</span></div>
                 <div class="s-meta">
                     <span class="s-elapsed${st==='running'?' live':''}" data-elapsed></span>
-                    <span class="s-badge sc-${st}" data-badge>${SC_ICON[st]||'○'} ${SC_LABEL[st]||'대기'}</span>
-                    <button class="run-mini-btn">Run</button>
+                    <button class="skip-btn${skipped?' skipped':''}" data-skip-btn title="${skipped?'Click to include in run':'Click to skip'}">⏭ ${skipped?'Skipped':'Skip'}</button>
+                    <button class="run-mini-btn"${skipped?' disabled':''}>Run</button>
+                    <span class="s-badge sc-${st}" data-badge>${SC_ICON[st]||'○'} ${SC_LABEL[st]||'Idle'}</span>
                 </div>
             </div>
             <div class="s-body">
@@ -507,6 +536,7 @@ async function renderScenarioGrid() {
             </div>
         `;
         card.querySelector('.s-header').onclick = (e) => { if(e.target.tagName !== 'BUTTON') card.classList.toggle('open'); };
+        card.querySelector('[data-skip-btn]').onclick = (e) => { e.stopPropagation(); toggleSkip(id); };
         card.querySelector('.run-mini-btn').onclick = (e) => { e.stopPropagation(); runTests(s.name); };
         list.appendChild(card);
     });
@@ -515,8 +545,14 @@ async function renderScenarioGrid() {
 
 async function runTests(id) {
     if(_isRunning) return;
-    await api('/api/run?s=' + id);
-    _isRunning = true; _runningID = id;
+    let runId = id;
+    if(id === 'all' && _skipSet.size > 0) {
+        const active = _scenarioList.filter(s => !_skipSet.has(s));
+        if(active.length === 0) { alert('실행할 시나리오가 없습니다. 스킵 설정을 확인하세요.'); return; }
+        runId = active.join(',');
+    }
+    await api('/api/run?s=' + runId);
+    _isRunning = true; _runningID = runId;
     document.getElementById('badge-area').innerHTML = '<span style="color:var(--warning); font-weight:700; font-size:12px;">⏳ 대기 중...</span>';
 }
 
@@ -545,23 +581,33 @@ async function loadResults() {
         return true;
     });
 
-    filtered.forEach(r => {
-        const div = document.createElement('div');
-        div.className = 'res-item';
-        div.setAttribute('data-runid', r.run_id);
-        const ok = r.summary.failed === 0;
-        div.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-                <div>
-                   <div style="font-weight:700; font-size:13px;">${r.date} ${r.time}</div>
-                   <div style="font-size:11px; color:#999; margin-top:4px;">${r.run_id}</div>
+    if (filtered.length === 0) {
+        const msg = document.createElement('div');
+        const isFiltered = _filter !== 'all';
+        msg.style.cssText = 'text-align:center; padding:40px 16px; color:#aaa; font-size:13px; line-height:1.8;';
+        msg.textContent = isFiltered
+            ? `'${_filter === 'pass' ? '성공' : '실패'}' 결과가 없습니다`
+            : '실행 이력이 없습니다';
+        list.appendChild(msg);
+    } else {
+        filtered.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'res-item';
+            div.setAttribute('data-runid', r.run_id);
+            const ok = r.summary.failed === 0;
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div>
+                       <div style="font-weight:700; font-size:13px;">${r.date} ${r.time}</div>
+                       <div style="font-size:11px; color:#999; margin-top:4px;">${r.run_id}</div>
+                    </div>
+                    <span class="status-icon ${ok?'pass':'fail'}">${ok?'✓':'✗'}</span>
                 </div>
-                <span class="status-icon ${ok?'pass':'fail'}">${ok?'✓':'✗'}</span>
-            </div>
-        `;
-        div.onclick = () => showReport(r, div);
-        list.appendChild(div);
-    });
+            `;
+            div.onclick = () => showReport(r, div);
+            list.appendChild(div);
+        });
+    }
 }
 
 function showReportByID(id) {
@@ -612,10 +658,13 @@ function showReport(r, el) {
             <h2 style="font-size:20px;">실행 리포트 (Execution Report)</h2>
             <div style="font-size:11px; color:#888; margin-top:5px;">실행 ID: ${r.run_id} | 일시: ${r.date} ${r.time} ${r.duration ? ` | 총 소요시간: ${fmtDuration(r.duration)}` : ''}</div>
         ${(r.device && (r.device.model || r.device.android)) ? `<div style="font-size:11px; color:#888; margin-top:3px;">연결 기기: ${r.device.model || '-'} | Android ${r.device.android || '-'}</div>` : ''}
-            <div style="display:flex; gap:15px; margin-top:12px;">
-                <span style="font-size:13px">전체 시나리오: <b>${r.summary.total}</b></span>
-                <span style="font-size:13px; color:var(--success)">성공: <b>${r.summary.passed}</b></span>
-                <span style="font-size:13px; color:var(--danger)">실패: <b>${r.summary.failed}</b></span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                <div style="display:flex; gap:15px;">
+                    <span style="font-size:13px">전체 시나리오: <b>${r.summary.total}</b></span>
+                    <span style="font-size:13px; color:var(--success)">성공: <b>${r.summary.passed}</b></span>
+                    <span style="font-size:13px; color:var(--danger)">실패: <b>${r.summary.failed}</b></span>
+                </div>
+                <button class="btn btn-ghost" style="padding:4px 12px; font-size:12px;" onclick="toggleAllScCards(this)">▼ 전체 접기</button>
             </div>
         </div>
         ${cards || '<p style="color:#aaa">기록된 시나리오가 없습니다.</p>'}
@@ -639,7 +688,7 @@ async function pollLogs() {
                 div.className = cls;
                 div.textContent = l; p.appendChild(div);
             });
-            if(autoScroll) p.scrollTop = p.scrollHeight;
+            if(autoScroll) requestAnimationFrame(() => p.scrollTo({ top: p.scrollHeight, behavior: 'instant' }));
         });
         // ── 시나리오 결과 실시간 파싱 ─────────────────────────
         // 형식: [INFO] ...::test_scenario_N_name PASSED / [ERROR] ...FAILED / [DEBUG] ...SKIPPED
@@ -724,11 +773,105 @@ function tickElapsed() {
     });
 }
 
+// ── 시나리오 스킵 토글 ────────────────────────────────────────
+function toggleSkip(id) {
+    if(_skipSet.has(id)) _skipSet.delete(id);
+    else _skipSet.add(id);
+    localStorage.setItem('bodoc_skip', JSON.stringify([..._skipSet]));
+    applySkipUI(id);
+}
+
+function applySkipUI(id) {
+    const card = document.querySelector(`.s-card[data-id="${id}"]`);
+    if(!card) return;
+    const skipped = _skipSet.has(id);
+    card.classList.toggle('sc-user-skip', skipped);
+    const skipBtn = card.querySelector('[data-skip-btn]');
+    if(skipBtn) {
+        skipBtn.textContent = skipped ? '⏭ Skipped' : '⏭ Skip';
+        skipBtn.classList.toggle('skipped', skipped);
+        skipBtn.title = skipped ? 'Click to include in run' : 'Click to skip';
+    }
+    const runBtn = card.querySelector('.run-mini-btn');
+    if(runBtn) runBtn.disabled = skipped || _isRunning;
+}
+
+// ── 이전 결과 삭제 ────────────────────────────────────────────
+function initDeleteDate() {
+    const el = document.getElementById('delete-date-input');
+    if (!el) return;
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    el.value = d.toISOString().slice(0, 10);
+}
+
+async function deleteResultsByDate() {
+    const dateEl = document.getElementById('delete-date-input');
+    const msgEl  = document.getElementById('delete-result-msg');
+    const date   = dateEl ? dateEl.value : '';
+    if (!date) { if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = '날짜를 선택하세요.'; } return; }
+    if (!confirm(`${date} 이전(포함) 결과를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (msgEl) { msgEl.style.color = '#888'; msgEl.textContent = '삭제 중...'; }
+    const r = await api(`/api/results/delete?date=${date}`, 10000);
+    if (r && r.ok) {
+        if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.textContent = `${r.count}개 삭제 완료`; }
+        refreshDashboard();
+    } else {
+        if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = `오류: ${r ? r.error : '요청 실패'}`; }
+    }
+}
+
+// ── 패널 드래그 리사이즈 ──────────────────────────────────────
+function initSplitResize() {
+    const divider  = document.getElementById('split-divider');
+    const left     = document.getElementById('split-left');
+    const container = divider && divider.parentElement;
+    if (!divider || !left || !container) return;
+
+    const STORAGE_KEY = 'bodoc_split_w';
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) left.style.width = saved + 'px';
+
+    let dragging = false, startX = 0, startW = 0;
+
+    divider.addEventListener('mousedown', e => {
+        dragging = true;
+        startX = e.clientX;
+        startW = left.getBoundingClientRect().width;
+        divider.classList.add('dragging');
+        document.body.style.cssText += 'cursor:col-resize;user-select:none;';
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const total = container.getBoundingClientRect().width - 14;
+        const newW  = Math.max(180, Math.min(total - 180, startW + e.clientX - startX));
+        left.style.width = newW + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem(STORAGE_KEY, Math.round(left.getBoundingClientRect().width));
+    });
+}
+
+function toggleAllScCards(btn) {
+    const cards = document.querySelectorAll('#rpt-detail .sc-card');
+    const hasOpen = [...cards].some(c => !c.classList.contains('closed'));
+    cards.forEach(c => c.classList.toggle('closed', hasOpen));
+    btn.textContent = hasOpen ? '▶ 전체 펼치기' : '▼ 전체 접기';
+}
+
 function init() {
     // 개별 API 호출은 독립적으로 실행 — 어느 하나가 느려도 UI 전체를 블로킹하지 않음
     api('/api/env').then(env => {
         if(env) document.getElementById('env-info').innerHTML = `Python: ${env.python}<br>Pytest: ${env.pytest}<br>Ver: 1.3.3 Analysis`;
     });
+    initSplitResize();
+    initDeleteDate();
     updateStatus();
     refreshDashboard();
     setInterval(pollLogs, 1000);

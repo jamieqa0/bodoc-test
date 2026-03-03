@@ -33,8 +33,7 @@ class RewardPage(BasePage):
     def verify_elements(self, ss_func=None, reporter=None):
         """보상 탭 주요 요소를 순차적으로 확인"""
         # 1️⃣ 스크롤하며 대상 탐색
-        if reporter:
-            reporter.step(f"화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}", "INFO")
+        print(f"> 화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}")
         self.scroll_to_text("보상 사례")
 
         # 2️⃣ 해당 타이틀 영역 노출 확인

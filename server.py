@@ -68,6 +68,51 @@ def add_log(msg):
         except: pass
 
 
+# ── Android SDK 루트 탐색 ──────────────────────────
+def _find_android_sdk():
+    """Android SDK 루트 경로를 반환한다.
+
+    build-tools/<version>/aapt2.exe 존재 여부로 유효성을 검증한다.
+    """
+    import glob
+
+    def _valid(p):
+        """build-tools 폴더 안에 aapt2.exe 가 하나라도 있으면 유효한 SDK 루트."""
+        if not p:
+            return False
+        return bool(glob.glob(os.path.join(p, 'build-tools', '*', 'aapt2.exe')))
+
+    # 1. .env의 ANDROID_SDK_PATH 최우선 (명시 지정)
+    v = os.environ.get('ANDROID_SDK_PATH', '').strip()
+    if v and _valid(v):
+        return v
+
+    # 2. 표준 환경변수
+    for key in ('ANDROID_HOME', 'ANDROID_SDK_ROOT'):
+        v = os.environ.get(key, '').strip()
+        if _valid(v):
+            return v
+
+    # 3. adb.exe 위치에서 유추 (platform-tools의 상위 = SDK 루트)
+    adb_path = _find_adb()
+    if adb_path and os.path.isabs(adb_path):
+        candidate = os.path.dirname(os.path.dirname(os.path.abspath(adb_path)))
+        if _valid(candidate):
+            return candidate
+
+    # 4. Windows 기본 설치 경로
+    for p in [
+        os.path.expandvars(r'%LOCALAPPDATA%\Android\Sdk'),
+        os.path.expandvars(r'%USERPROFILE%\AppData\Local\Android\Sdk'),
+        r'C:\Android\Sdk',
+        r'C:\Android',
+    ]:
+        if _valid(p):
+            return p
+
+    return None
+
+
 # ── adb 경로 탐색 ──────────────────────────────────
 def _find_adb():
     import shutil
@@ -193,6 +238,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({'ok': True})
         elif p == '/api/results':
             self._results()
+        elif p == '/api/results/delete':
+            self._delete_results_by_date(qs)
         elif p == '/api/test/definition':
             self._test_definition()
         else:
@@ -208,13 +255,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def _json(self, data, code=200):
         body = json.dumps(data, ensure_ascii=True).encode('utf-8')
-        self.send_response(code)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.send_header('Content-Length', str(len(body)))
-        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
-        self._cors()
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            self._cors()
+            self.end_headers()
+            self.wfile.write(body)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass  # 클라이언트가 먼저 연결을 끊은 경우 — 정상 상황
 
     def _serve_file(self, path, mime):
         try:
@@ -227,6 +277,8 @@ class Handler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             self.send_response(404)
             self.end_headers()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
 
     def _serve_html(self):
         from utils.reporter import _HTML
@@ -255,12 +307,17 @@ class Handler(BaseHTTPRequestHandler):
             self._cors()
             self.end_headers()
             self.wfile.write(body)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
         except Exception as e:
             print(f"[ERR] 리포트 생성 실패: {e}")
-            msg = f"<h2>Internal Server Error: {e}</h2>".encode()
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(msg)
+            try:
+                msg = f"<h2>Internal Server Error: {e}</h2>".encode()
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(msg)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                pass
 
     # ── 디바이스 상태 ──────────────────────────────
     def _device_status(self):
@@ -342,13 +399,22 @@ class Handler(BaseHTTPRequestHandler):
 
         cmd = [appium_cmd, '--log-level', 'warn']
         add_log(f'[APPIUM] 실행 명령: {" ".join(cmd)}')
-        
+
+        # Android SDK 경로를 Appium 프로세스 환경에 주입 (aapt2.exe 탐색용)
+        env = os.environ.copy()
+        sdk = _find_android_sdk()
+        if sdk:
+            env.setdefault('ANDROID_HOME', sdk)
+            env.setdefault('ANDROID_SDK_ROOT', sdk)
+            add_log(f'[APPIUM] Android SDK 경로: {sdk}')
+
         try:
             _appium_proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 encoding='utf-8', errors='replace',  # Node.js는 UTF-8 출력
-                shell=True
+                shell=True,
+                env=env,
             )
         except Exception as e:
             add_log(f'[APPIUM] ⚠️ 시작 실패: {e}')
@@ -467,6 +533,28 @@ class Handler(BaseHTTPRequestHandler):
                     all_r.append(json.loads(p.read_text(encoding='utf-8')))
                 except: continue
         self._json(all_r)
+
+    def _delete_results_by_date(self, qs):
+        """date=YYYY-MM-DD 이하인 result_*.json 파일을 삭제한다."""
+        date_str = qs.get('date', [''])[0].strip()
+        if not date_str:
+            self._json({'ok': False, 'error': '날짜를 입력하세요'}, 400)
+            return
+        try:
+            # YYYY-MM-DD → YYYYMMDD (run_id 앞 8자리와 비교)
+            threshold = date_str.replace('-', '')
+            deleted = []
+            if os.path.exists(RESULTS_DIR):
+                for f in sorted(Path(RESULTS_DIR).glob("result_*.json")):
+                    # 파일명: result_YYYYMMDD_HHMMSS.json → stem: result_YYYYMMDD_HHMMSS
+                    parts = f.stem.split('_')   # ['result', 'YYYYMMDD', 'HHMMSS']
+                    if len(parts) >= 2 and parts[1] <= threshold:
+                        f.unlink()
+                        deleted.append(f.name)
+            add_log(f'[INFO] 결과 삭제: {date_str} 이전 {len(deleted)}개 삭제')
+            self._json({'ok': True, 'deleted': deleted, 'count': len(deleted)})
+        except Exception as e:
+            self._json({'ok': False, 'error': str(e)}, 500)
 
     def _test_definition(self):
         scenarios, err = _extract_scenarios()

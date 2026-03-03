@@ -39,7 +39,7 @@ class HomePage(BasePage):
         if reporter:
             reporter.step("매월 내는 보험료 노출 확인", "PASSED", shot)
         print("[OK] 매월 내는 보험료 확인")
-        #  여기서 뭔가 이상해
+
         # 4️⃣ 숨은 보험금 확인 (스크롤 필요)
         self.scroll_until_visible("//*[contains(@text,'숨은 보험금')]", max_scrolls=8, check_timeout=1)
         shot = ss_func("S3_5_Home_Hidden_Insurance") if ss_func else None
@@ -93,7 +93,6 @@ class HomePage(BasePage):
         reporter.step("숨은 보험금 노출 확인", "PASSED", shot)
         print("[OK] 숨은 보험금 확인")
         self.scroll_down(1)
-        time.sleep(1)
 
         # 6️⃣ 이런 상황일 때 OR 손해사정사에게
         target_xpath = (

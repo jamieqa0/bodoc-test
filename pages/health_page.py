@@ -26,8 +26,7 @@ class HealthPage(BasePage):
     def verify_elements(self, ss_func=None, reporter=None):
         """건강 탭 주요 요소를 순차적으로 확인"""
         # 1️⃣ 화면을 스크롤하며 대상 요소 탐색
-        if reporter:
-            reporter.step(f"화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}", "INFO")
+        print(f"> 화면 스크롤하며 대상 탐색: {self.TARGET_TEXT}")
         self.scroll_to_text(self.TARGET_TEXT)
 
         # 2️⃣ "건강 기록" 타이틀 노출 확인

@@ -159,3 +159,23 @@ class BasePage:
             self._swipe(from_y_ratio=0.8, to_y_ratio=0.2, times=1)
         else:
             print(f"[OK] 최하단 스크롤 완료 (최대 {max_swipes}회)")
+
+    def dismiss_any_permission_popup(self):
+        """화면에 시스템 권한 팝업이 있으면 '허용'을 눌러 해제한다.
+
+        Android 13+ POST_NOTIFICATIONS 등 예상치 못한 시점에 뜨는
+        시스템 다이얼로그를 처리한다. 팝업이 없으면 무시한다.
+        """
+        for xpath in (
+            "//*[@text='허용']",
+            "//*[@text='앱 사용 중에만 허용']",
+        ):
+            try:
+                el = WebDriverWait(self.driver, 2).until(
+                    EC.presence_of_element_located((AppiumBy.XPATH, xpath))
+                )
+                el.click()
+                print(f"[OK] 권한 팝업 처리: {xpath}")
+                return
+            except Exception:
+                pass
