@@ -76,15 +76,34 @@ _HTML = r"""<!DOCTYPE html>
   .split-left { width: 440px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; flex-shrink: 0; }
   .split-right { flex: 1; display: flex; flex-direction: column; gap: 15px; overflow: hidden; }
 
-  .s-card { background: #fff; border: 1.2px solid var(--border); border-radius: 10px; margin-bottom: 8px; overflow: hidden; transition: 0.2s; }
-  .s-card.running { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(255, 71, 87, 0.2); }
-  .s-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-  .s-info { display: flex; align-items: center; gap: 8px; }
-  .s-num { font-size: 10px; color: var(--brand); font-weight: 800; }
-  .s-name { font-size: 13px; font-weight: 600; }
+  .s-card { background: #fff; border: 1.2px solid var(--border); border-left-width: 4px; border-radius: 10px; margin-bottom: 8px; overflow: hidden; transition: background 0.25s, border-color 0.25s, box-shadow 0.25s; }
+  .s-card.sc-idle    { border-left-color: #d1d5db; }
+  .s-card.sc-running { border-left-color: #3b82f6; background: #f0f7ff; animation: card-glow 2s ease-in-out infinite; }
+  .s-card.sc-passed  { border-left-color: var(--success); background: #f0fdf4; }
+  .s-card.sc-failed  { border-left-color: var(--danger);  background: #fff5f5; }
+  .s-card.sc-skipped { border-left-color: var(--warning); background: #fffbeb; }
+  .s-card.sc-done    { border-left-color: #9ca3af; background: #f9fafb; }
+  @keyframes card-glow {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(59,130,246,0.12); }
+    50%       { box-shadow: 0 0 0 6px rgba(59,130,246,0.30); }
+  }
+  .s-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; gap: 8px; }
+  .s-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .s-num { font-size: 10px; color: var(--brand); font-weight: 800; flex-shrink: 0; }
+  .s-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .s-body { display: none; padding: 15px 16px; border-top: 1px solid #f8f9fc; background: #fafafa; }
   .s-card.open .s-body { display: block; }
   .s-code { background: #1e2130; color: #fff; padding: 10px; border-radius: 6px; font-size: 10.5px; overflow-x: auto; margin-top: 10px; border: 1px solid #333; }
+  .s-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .s-badge.sc-idle    { background: #f3f4f6; color: #9ca3af; }
+  .s-badge.sc-running { background: #dbeafe; color: #1d4ed8; }
+  .s-badge.sc-passed  { background: #dcfce7; color: #15803d; }
+  .s-badge.sc-failed  { background: #fee2e2; color: #b91c1c; }
+  .s-badge.sc-skipped { background: #fef9c3; color: #a16207; }
+  .s-badge.sc-done    { background: #f3f4f6; color: #6b7280; }
+  .s-elapsed { font-size: 11px; color: #9ca3af; font-family: 'Consolas', monospace; min-width: 56px; text-align: right; }
+  .s-elapsed.live { color: #3b82f6; font-weight: 700; }
 
   .log-box { background: #1e2130; border-radius: 12px; height: 100%; overflow-y: auto; padding: 16px; font-family: 'Consolas', monospace; font-size: 12px; color: #eee; line-height: 1.5; scroll-behavior: smooth; }
   .log-line { border-bottom: 1px solid rgba(255,255,255,0.03); padding: 2px 0; word-break: break-all; }
@@ -138,6 +157,10 @@ _HTML = r"""<!DOCTYPE html>
   #lb.on { display: flex; }
   #lb img { max-width: 95%; max-height: 95%; }
   
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; display: inline-block; flex-shrink: 0; }
+  .dot.on  { background: var(--success); box-shadow: 0 0 6px rgba(46,204,113,0.5); }
+  .dot.off { background: var(--danger);  box-shadow: 0 0 6px rgba(255,71,87,0.3); }
+
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
 </style>
@@ -281,22 +304,24 @@ let _results = [];
 let _filter = 'all';
 let _isRunning = false;
 let _runningID = null;
+let _scenarioList = [];  // 정렬된 시나리오 ID 배열
+let _cardStatus   = {};  // { id: 'idle'|'running'|'passed'|'failed'|'skipped'|'done' }
+let _cardStart    = {};  // { id: ms } 실행 시작 시각
+let _prevRunning  = false;
+let _prevIdx      = 0;
+const SC_LABEL = { idle:'대기', running:'실행 중', passed:'성공', failed:'실패', skipped:'스킵', done:'완료' };
+const SC_ICON  = { idle:'○', running:'▶', passed:'✓', failed:'✗', skipped:'—', done:'●' };
 
 function esc(str) { return str ? str.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : ""; }
-function renderDevice(d) {
-    if (!d || (!d.model && !d.udid)) return '';
-    let s = '<div style="font-size:11px; color:#888; margin-top:3px;">디바이스: <b>' + esc(d.model || d.udid) + '</b>';
-    if (d.version) s += ' | Android ' + esc(d.version);
-    if (d.model && d.udid) s += ' | ' + esc(d.udid);
-    s += '</div>';
-    return s;
-}
 
-async function api(path) {
+async function api(path, timeout=5000) {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), timeout);
     try {
-        const r = await fetch(API + path + (path.includes('?') ? '&' : '?') + 't=' + Date.now());
+        const r = await fetch(API + path + (path.includes('?') ? '&' : '?') + 't=' + Date.now(), { signal: ctrl.signal });
+        clearTimeout(tid);
         return r.ok ? await r.json() : null;
-    } catch(e) { return null; }
+    } catch(e) { clearTimeout(tid); return null; }
 }
 
 function setFilter(f) {
@@ -344,74 +369,108 @@ async function updateStatus() {
     const [s, d, t] = await Promise.all([
         api('/api/appium/status'),
         api('/api/device/status'),
-        api('/api/test/status')
+        api('/api/test/status'),
     ]);
 
-    if(t) { _isRunning = t.running; _runningID = t.current_scenario; }
-
-    // 시스템 상태 — 항상 가장 먼저 업데이트
-    const dashSys = document.getElementById('dash-sys-status');
-    if(dashSys) dashSys.innerHTML =
-        'Appium 서버: <b style="color:' + (s&&s.running?'var(--success)':'var(--danger)') + '">' + (s&&s.running?'작동 중':'중지됨') + '</b><br>' +
-        '연결 기기: <b>' + (d?d.count:'0') + '</b>대<br>' +
-        '테스트 상태: ' + (_isRunning?'<b style="color:var(--warning)">진행 중...</b>':'<b style="color:#888">대기</b>');
-
-    // 설정 탭 — Appium 상태
     if(s) {
         const adot = document.getElementById('appium-dot');
         const atxt = document.getElementById('appium-text');
-        if(adot) adot.className = s.running ? 'dot on' : 'dot off';
-        if(atxt) atxt.textContent = s.running ? '온라인 (v'+s.version+')' : '오프라인';
+        if(s.running) { adot.className='dot on'; atxt.textContent='온라인 (v'+s.version+')'; }
+        else { adot.className='dot off'; atxt.textContent='오프라인'; }
     }
 
-    // 설정 탭 — 디바이스 상태
     if(d) {
         const ddot = document.getElementById('device-dot');
         const dtxt = document.getElementById('device-text');
-        const dlist = document.getElementById('device-list');
-        if(d.count > 0) {
-            if(ddot) ddot.className = 'dot on';
-            if(dtxt) dtxt.textContent = d.count + '대 연결됨';
-            if(dlist) dlist.innerHTML = d.devices.join('<br>');
-        } else {
-            if(ddot) ddot.className = 'dot off';
-            if(dtxt) dtxt.textContent = '연결된 기기 없음';
-            if(dlist) dlist.innerHTML = '';
-        }
+        if(d.count > 0) { ddot.className='dot on'; dtxt.textContent=d.count+'대 연결됨'; document.getElementById('device-list').innerHTML = d.devices.join('<br>'); }
+        else { ddot.className='dot off'; dtxt.textContent='연결된 기기 없음'; document.getElementById('device-list').innerHTML = ''; }
     }
 
-    // 실행 탭 — 버튼 상태 및 배지
     if(t) {
-        const btnStop = document.getElementById('btn-stop-test');
-        const btnRun  = document.getElementById('btn-run-all');
-        if(btnStop) btnStop.disabled = !_isRunning;
-        if(btnRun)  btnRun.disabled  = _isRunning;
+        _isRunning = t.running;
+        _runningID = t.current_scenario;
+        document.getElementById('btn-stop-test').disabled = !_isRunning;
+        document.getElementById('btn-run-all').disabled = _isRunning;
 
+        // 진행 상태 표시 강화
         const badge = document.getElementById('badge-area');
-        if(badge) {
-            if(_isRunning) {
+        if(_isRunning) {
+            let prog = '진행 중...';
+            if(t.total_count > 0) {
                 const cur = t.current_idx || 0;
-                const prog = t.total_count > 0 ? '시나리오 실행 중 (' + cur + '/' + t.total_count + ')' : '진행 중...';
-                badge.innerHTML = '<span class="badge" style="background:var(--warning);color:#fff;padding:6px 12px;font-size:12px;border-radius:20px;animation:pulse 2s infinite;">⏳ ' + prog + '</span>';
-            } else {
-                badge.innerHTML = '<span class="badge" style="background:#e2e8f0;color:#64748b;padding:6px 12px;font-size:12px;border-radius:20px;">💤 대기 중</span>';
+                prog = `시나리오 실행 중 (${Math.min(cur + 1, t.total_count)}/${t.total_count})`;
+            }
+            badge.innerHTML = `<span class="badge" style="background:var(--warning); color:#fff; padding:6px 12px; font-size:12px; border-radius:20px; animation: pulse 2s infinite;">⏳ ${prog}</span>`;
+        } else {
+            badge.innerHTML = '<span class="badge" style="background:#e2e8f0; color:#64748b; padding:6px 12px; font-size:12px; border-radius:20px;">💤 대기 중</span>';
+        }
+    }
+    
+    // ── 실행 시작/종료 전환 감지 ──────────────────────────────
+    if(!_prevRunning && _isRunning) {
+        // 새 실행 시작 → 전체 카드 초기화
+        _cardStart = {};
+        _prevIdx   = 0;
+        _scenarioList.forEach(id => setCardStatus(id, 'idle'));
+    }
+    if(_prevRunning && !_isRunning) {
+        // 실행 완료 → 결과 동기화
+        syncResultsToCards();
+    }
+    _prevRunning = _isRunning;
+
+    // ── 실행 중 카드 상태 업데이트 ────────────────────────────
+    if(_isRunning && t) {
+        const idx = t.current_idx || 0;
+        if(_runningID === 'all') {
+            // 이전 폴링 이후 완료된 카드 처리 (log파싱 미처리분 보완)
+            for(let i = _prevIdx; i < idx && i < _scenarioList.length; i++) {
+                const id = _scenarioList[i];
+                if(_cardStatus[id] === 'running') setCardStatus(id, 'done');
+            }
+            // 현재 실행 중인 카드 강조
+            if(idx < _scenarioList.length) {
+                const runId = _scenarioList[idx];
+                if(!['passed','failed','skipped'].includes(_cardStatus[runId])) {
+                    if(!_cardStart[runId]) _cardStart[runId] = Date.now();
+                    if(_cardStatus[runId] !== 'running') setCardStatus(runId, 'running');
+                    const el = document.querySelector(`.s-card[data-id="${runId}"]`);
+                    if(el) el.scrollIntoView({behavior:'smooth', block:'nearest'});
+                }
+            }
+        } else {
+            // 단일 시나리오 실행
+            const runId = String(_runningID);
+            if(!['passed','failed','skipped'].includes(_cardStatus[runId])) {
+                if(!_cardStart[runId]) _cardStart[runId] = Date.now();
+                if(_cardStatus[runId] !== 'running') setCardStatus(runId, 'running');
             }
         }
+        _prevIdx = idx;
+    }
 
-        const paneRun = document.getElementById('pane-run');
-        if(paneRun && paneRun.classList.contains('active')) {
-            document.querySelectorAll('.s-card').forEach(card => {
-                const id  = card.getAttribute('data-id');
-                const btn = card.querySelector('.run-mini-btn');
-                if(!btn) return;
-                if(_isRunning && (id === _runningID || _runningID === 'all')) {
-                    card.classList.add('running'); btn.disabled = true;
-                    btn.innerHTML = '<div class="spinner"></div> 실행중'; btn.classList.add('running');
-                } else {
-                    card.classList.remove('running'); btn.disabled = _isRunning;
-                    btn.innerHTML = 'Run'; btn.classList.remove('running');
-                }
-            });
+    // ── Run 버튼 상태 일괄 갱신 ───────────────────────────────
+    document.querySelectorAll('.s-card').forEach(card => {
+        const btn = card.querySelector('.run-mini-btn');
+        if(!btn) return;
+        const id = card.getAttribute('data-id');
+        if(_cardStatus[id] === 'running') {
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div>';
+            btn.classList.add('running');
+        } else {
+            btn.disabled = _isRunning;
+            btn.innerHTML = 'Run';
+            btn.classList.remove('running');
+        }
+    });
+
+    const dashSys = document.getElementById('dash-sys-status');
+    if(dashSys) {
+        if(!s && !d && !t) {
+            dashSys.innerHTML = '<span style="color:var(--danger)">⚠️ 서버에 응답 없음 (타임아웃) — Appium 및 서버 상태를 확인하세요.</span>';
+        } else {
+            dashSys.innerHTML = `Appium 서버: <b style="color:${s&&s.running?'var(--success)':'var(--danger)'}">${s&&s.running?'작동 중':'중지됨'}</b><br>연결 기기: <b>${d?d.count:'0'}</b>대<br>테스트 상태: ${_isRunning?'<b style="color:var(--warning)">진행 중...</b>':'<b style="color:#888">대기</b>'}`;
         }
     }
 }
@@ -420,15 +479,27 @@ async function renderScenarioGrid() {
     const d = await api('/api/test/definition');
     const list = document.getElementById('scenario-list');
     if(!d || !d.scenarios || !list) return;
+    function _scKey(id) { const p=String(id).split('_').map(Number); return (p[0]||0)+(p[1]||0)/100; }
+    const sorted = d.scenarios.slice().sort((a,b) => _scKey(a.id) - _scKey(b.id));
+    _scenarioList = sorted.map(s => String(s.id));
+    const prevStatus = {..._cardStatus};
     list.innerHTML = '';
-    d.scenarios.sort((a,b)=>a.id-b.id).forEach(s => {
+    sorted.forEach(s => {
+        const id = String(s.id);
+        const st = prevStatus[id] || 'idle';
+        if(!prevStatus[id]) _cardStatus[id] = 'idle';
         const card = document.createElement('div');
-        card.className = 's-card'; card.setAttribute('data-id', s.id);
+        card.className = 's-card sc-' + st;
+        card.setAttribute('data-id', id);
         const name = s.description ? s.description.split('\n')[0] : s.name;
         card.innerHTML = `
             <div class="s-header">
-                <div class="s-info"><span class="s-num">S${s.id}</span> <span class="s-name">${esc(name)}</span></div>
-                <button class="run-mini-btn">Run</button>
+                <div class="s-info"><span class="s-num">S${esc(id)}</span> <span class="s-name">${esc(name)}</span></div>
+                <div class="s-meta">
+                    <span class="s-elapsed${st==='running'?' live':''}" data-elapsed></span>
+                    <span class="s-badge sc-${st}" data-badge>${SC_ICON[st]||'○'} ${SC_LABEL[st]||'대기'}</span>
+                    <button class="run-mini-btn">Run</button>
+                </div>
             </div>
             <div class="s-body">
                 <div style="font-size:12px; color:#555; line-height:1.6; white-space:pre-wrap;">${esc(s.description || '상세 설명 없음')}</div>
@@ -436,7 +507,7 @@ async function renderScenarioGrid() {
             </div>
         `;
         card.querySelector('.s-header').onclick = (e) => { if(e.target.tagName !== 'BUTTON') card.classList.toggle('open'); };
-        card.querySelector('.run-mini-btn').onclick = (e) => { e.stopPropagation(); runTests(s.id); };
+        card.querySelector('.run-mini-btn').onclick = (e) => { e.stopPropagation(); runTests(s.name); };
         list.appendChild(card);
     });
     updateStatus();
@@ -457,7 +528,7 @@ async function loadResults() {
     if(!data) {
         try {
             const raw = document.getElementById('reports-data').textContent;
-            if(raw && !raw.includes('__REPORTS_JSON__')) {
+            if(raw && raw.trim().startsWith('[')) {
                 data = JSON.parse(raw);
             }
         } catch(e) {}
@@ -498,13 +569,21 @@ function showReportByID(id) {
     if(r) showReport(r, document.querySelector(`.res-item[data-runid="${id}"]`));
 }
 
+function fmtDuration(secs) {
+    if (!secs) return '-';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = Math.floor(secs % 60);
+    return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+}
+
 function showReport(r, el) {
     document.querySelectorAll('.res-item').forEach(i=>i.classList.remove('active'));
     if(el) el.classList.add('active');
     
     const det = document.getElementById('rpt-detail');
     const cards = (r.scenarios || []).map(s => {
-        const duration = s.duration ? `(${s.duration}s)` : "";
+        const duration = s.duration ? `(${fmtDuration(s.duration)})` : "";
         const steps = (s.steps||[]).map(st => `
             <div style="margin-bottom:12px;">
                 <div style="display:flex; gap:8px;">
@@ -531,8 +610,8 @@ function showReport(r, el) {
     det.innerHTML = `
         <div class="report-header">
             <h2 style="font-size:20px;">실행 리포트 (Execution Report)</h2>
-            <div style="font-size:11px; color:#888; margin-top:5px;">실행 ID: ${r.run_id} | 일시: ${r.date} ${r.time} ${r.duration ? ` | 총 소요시간: ${r.duration}초` : ''}</div>
-            ${renderDevice(r.device)}
+            <div style="font-size:11px; color:#888; margin-top:5px;">실행 ID: ${r.run_id} | 일시: ${r.date} ${r.time} ${r.duration ? ` | 총 소요시간: ${fmtDuration(r.duration)}` : ''}</div>
+        ${(r.device && (r.device.model || r.device.android)) ? `<div style="font-size:11px; color:#888; margin-top:3px;">연결 기기: ${r.device.model || '-'} | Android ${r.device.android || '-'}</div>` : ''}
             <div style="display:flex; gap:15px; margin-top:12px;">
                 <span style="font-size:13px">전체 시나리오: <b>${r.summary.total}</b></span>
                 <span style="font-size:13px; color:var(--success)">성공: <b>${r.summary.passed}</b></span>
@@ -557,11 +636,32 @@ async function pollLogs() {
                 else if(l.includes('[PASSED]') || l.includes('✅')) cls += ' ok';
                 else if(l.includes('[INFO]')) cls += ' info';
                 else if(l.includes('[DEBUG]')) cls += ' debug';
-                
                 div.className = cls;
                 div.textContent = l; p.appendChild(div);
             });
             if(autoScroll) p.scrollTop = p.scrollHeight;
+        });
+        // ── 시나리오 결과 실시간 파싱 ─────────────────────────
+        // 형식: [INFO] ...::test_scenario_N_name PASSED / [ERROR] ...FAILED / [DEBUG] ...SKIPPED
+        d.logs.forEach(l => {
+            const m = l.match(/test_scenario_(\d+(?:_\d+)?)[_a-z]* (PASSED|FAILED|SKIPPED)/);
+            if(!m) return;
+            const id = m[1];
+            const raw = m[2];
+            const st = raw === 'PASSED' ? 'passed' : raw === 'SKIPPED' ? 'skipped' : 'failed';
+            if(_cardStatus[id] !== st) {
+                _cardStatus[id] = st;
+                setCardStatus(id, st);
+                // 완료된 카드에 실행 시간 기록
+                if(_cardStart[id]) {
+                    const secs = (Date.now() - _cardStart[id]) / 1000;
+                    const card = document.querySelector(`.s-card[data-id="${id}"]`);
+                    if(card) {
+                        const el = card.querySelector('[data-elapsed]');
+                        if(el) { el.textContent = fmtDuration(secs); el.className = 's-elapsed'; }
+                    }
+                }
+            }
         });
         logOffset = d.total;
     }
@@ -571,11 +671,69 @@ function openImg(src) { event.stopPropagation(); const lb=document.getElementByI
 async function startAppium() { await api('/api/appium/start'); }
 async function stopAppium() { await api('/api/appium/stop'); }
 
-async function init() {
-    const env = await api('/api/env');
-    if(env) document.getElementById('env-info').innerHTML = `Python: ${env.python}<br>Pytest: ${env.pytest}<br>Ver: 1.3.3 Analysis`;
-    updateStatus(); await refreshDashboard();
-    setInterval(pollLogs, 1000); setInterval(updateStatus, 3000);
+// ── 시나리오 카드 상태 적용 ────────────────────────────────────
+function setCardStatus(id, status) {
+    _cardStatus[id] = status;
+    const card = document.querySelector(`.s-card[data-id="${id}"]`);
+    if(!card) return;
+    const states = ['sc-idle','sc-running','sc-passed','sc-failed','sc-skipped','sc-done'];
+    card.classList.remove(...states);
+    card.classList.add('sc-' + status);
+    const badge = card.querySelector('[data-badge]');
+    if(badge) {
+        badge.className = 's-badge sc-' + status;
+        badge.textContent = (SC_ICON[status]||'○') + ' ' + (SC_LABEL[status]||status);
+    }
+    const el = card.querySelector('[data-elapsed]');
+    if(el && status === 'running') el.className = 's-elapsed live';
+    else if(el && status !== 'running') el.classList.remove('live');
+}
+
+// ── 실행 완료 후 결과 API로 카드 상태 동기화 ──────────────────
+async function syncResultsToCards() {
+    const data = await api('/api/results');
+    if(!data || !data.length) return;
+    const latest = data[0];
+    if(!latest || !latest.scenarios) return;
+    latest.scenarios.forEach(s => {
+        // 시나리오 이름에서 번호 추출: "시나리오1_..." 또는 "Scenario 1" 패턴
+        const m = (s.name || '').match(/(?:시나리오|scenario|s)\s*(\d+(?:[_-]\d+)?)/i);
+        if(!m) return;
+        const id = m[1].replace('-', '_');
+        const st = s.status === 'PASSED' ? 'passed' : s.status === 'SKIPPED' ? 'skipped' : 'failed';
+        if(_cardStatus[id] !== st) setCardStatus(id, st);
+        // 결과 파일의 duration으로 경과 시간 갱신
+        if(s.duration) {
+            const card = document.querySelector(`.s-card[data-id="${id}"]`);
+            if(card) {
+                const el = card.querySelector('[data-elapsed]');
+                if(el) { el.textContent = fmtDuration(s.duration); el.className = 's-elapsed'; }
+            }
+        }
+    });
+}
+
+// ── 실행 중인 카드 경과 시간 갱신 (매 초) ─────────────────────
+function tickElapsed() {
+    const now = Date.now();
+    document.querySelectorAll('.s-card').forEach(card => {
+        const id = card.getAttribute('data-id');
+        if(_cardStatus[id] !== 'running' || !_cardStart[id]) return;
+        const el = card.querySelector('[data-elapsed]');
+        if(el) { el.textContent = fmtDuration((now - _cardStart[id]) / 1000); el.className = 's-elapsed live'; }
+    });
+}
+
+function init() {
+    // 개별 API 호출은 독립적으로 실행 — 어느 하나가 느려도 UI 전체를 블로킹하지 않음
+    api('/api/env').then(env => {
+        if(env) document.getElementById('env-info').innerHTML = `Python: ${env.python}<br>Pytest: ${env.pytest}<br>Ver: 1.3.3 Analysis`;
+    });
+    updateStatus();
+    refreshDashboard();
+    setInterval(pollLogs, 1000);
+    setInterval(updateStatus, 3000);
+    setInterval(tickElapsed, 1000);
 }
 init();
 </script>
@@ -596,13 +754,10 @@ class TestReporter:
             "date": datetime.now().strftime('%Y-%m-%d'),
             "time": datetime.now().strftime('%H:%M:%S'),
             "duration": 0,
-            "device": {},
+            "device": {"model": "", "android": ""},
             "scenarios": [],
             "summary": {"total": 0, "passed": 0, "failed": 0},
         }
-
-    def set_device(self, model='', version='', udid=''):
-        self.data["device"] = {"model": model, "version": version, "udid": udid}
 
     def start_scenario(self, name):
         self._current = {
@@ -613,12 +768,17 @@ class TestReporter:
             "end": None,
             "duration": 0,
             "steps": [],
-            "error": None
+            "error": None,
+            "step_count": 0  # 이 시나리오의 전체 스텝 수
         }
 
     def step(self, name, status="PASSED", screenshot=None):
         if self._current is None: return
-        self._current["steps"].append({"name": name, "status": status, "screenshot": screenshot})
+        self._current["step_count"] += 1
+        step_number = self._current["step_count"]
+        # 결과 JSON의 steps에 "1️⃣ 스텝 이름" 형태로 저장
+        numbered_name = f"{step_number}️⃣ {name}"
+        self._current["steps"].append({"name": numbered_name, "status": status, "screenshot": screenshot})
 
     def end_scenario(self, status, error=None):
         if self._current is None: return
@@ -626,14 +786,16 @@ class TestReporter:
         self._current["end"] = datetime.now().strftime('%H:%M:%S')
         self._current["duration"] = round(time.time() - self._current.get("start_ts", time.time()), 1)
         if error:
-            # 에러 메시지가 너무 길면 잘릴 수 있으므로 최대한 보관
-            self._current["error"] = str(error)
+            self._current["error"] = str(error)[:3000]
         
         self.data["scenarios"].append(self._current)
         self.data["summary"]["total"] += 1
         if status == "PASSED": self.data["summary"]["passed"] += 1
         else: self.data["summary"]["failed"] += 1
         self._current = None
+
+    def set_device(self, model, android):
+        self.data["device"] = {"model": model, "android": android}
 
     def save(self):
         self.data["duration"] = round(time.time() - self._start, 1)

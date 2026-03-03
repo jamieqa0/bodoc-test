@@ -164,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
             s = qs.get('s', ['all'])[0]
             # #5: 'all' 또는 쉼표로 구분된 숫자만 허용
             import re
-            if s != 'all' and not re.fullmatch(r'[\d,]+', s):
+            if s != 'all' and not re.fullmatch(r'[\w,]+', s):
                 self._json({'error': 'invalid scenario parameter'}, 400)
             else:
                 self._run(s)
@@ -347,7 +347,7 @@ class Handler(BaseHTTPRequestHandler):
             _appium_proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                encoding=SYS_ENC, errors='replace',
+                encoding='utf-8', errors='replace',  # Node.js는 UTF-8 출력
                 shell=True
             )
         except Exception as e:
@@ -409,7 +409,10 @@ class Handler(BaseHTTPRequestHandler):
         if scenarios == 'all':
             cmd = [sys.executable, '-m', 'pytest', 'tests/test_bodoc_flow.py', '-v', '--tb=short']
         else:
-            kw = ' or '.join(f'test_scenario_{s}' for s in scenarios.split(','))
+            kw = ' or '.join(
+                s if s.startswith('test_scenario_') else f'test_scenario_{s}'
+                for s in scenarios.split(',')
+            )
             cmd = [sys.executable, '-m', 'pytest', 'tests/test_bodoc_flow.py', '-v', '--tb=short', '-k', kw]
 
         add_log(f'[TEST] 실행: {" ".join(cmd)}')
@@ -492,6 +495,9 @@ def _extract_scenarios():
                 try:
                     parts = node.name.split('_')
                     s_id = parts[2] if len(parts) >= 3 else "0"
+                    # test_scenario_3_1_... 형태: 세 번째 파트 다음이 숫자면 "3_1" 로 결합
+                    if len(parts) >= 4 and parts[3].isdigit():
+                        s_id = f"{parts[2]}_{parts[3]}"
                     doc = ast.get_docstring(node) or "설명 없음"
                     func_lines = lines[node.lineno-1 : node.end_lineno]
                     code = "\n".join(func_lines)

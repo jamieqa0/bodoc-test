@@ -4,6 +4,7 @@ from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import StaleElementReferenceException
 
 
 # #3: 테스트 프레임워크(pytest)에 의존하지 않는 커스텀 예외
@@ -39,15 +40,14 @@ class BasePage:
                 element = self.wait_for_element(xpath, timeout=5)
                 element.click()
                 print(f"[OK] 클릭 성공: {step_name}")
-                time.sleep(0.2)
                 if self.ss:
                     self.ss(step_name.replace(" ", "_"))
                 return
             except Exception as e:
                 last_exc = e
-                if attempt == 0 and "stale" in str(e).lower():
-                    print(f"[WARN] '{step_name}' StaleElement — 0.5초 후 재시도...")
-                    time.sleep(0.5)
+                if attempt == 0 and isinstance(e, StaleElementReferenceException):
+                    print(f"[WARN] '{step_name}' StaleElement — 재시도...")
+                    time.sleep(0.3)
                 else:
                     break
 
@@ -69,52 +69,68 @@ class BasePage:
         # #3: pytest.fail() 대신 커스텀 예외 → 상위(scenario_context)에서 처리
         raise ElementInteractionError(f"클릭 실패: {step_name} — {last_exc}")
 
-    def scroll_down(self, times=1):
-        """화면 아래로 스크롤 (기본 1회)"""
+    def _swipe(self, from_y_ratio, to_y_ratio, times):
+        """수직 스와이프 내부 헬퍼. scroll_down/scroll_up 에서 사용."""
         size = self.driver.get_window_size()
         w, h = size['width'], size['height']
-
         for _ in range(times):
             actions = ActionChains(self.driver)
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.8)
+            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * from_y_ratio)
             actions.w3c_actions.pointer_action.pointer_down()
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.2)
+            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * to_y_ratio)
             actions.w3c_actions.pointer_action.pointer_up()
             actions.perform()
             time.sleep(0.5)
 
+    def scroll_down(self, times=1):
+        """화면 아래로 스크롤 (기본 1회)"""
+        self._swipe(from_y_ratio=0.8, to_y_ratio=0.2, times=times)
         print(f"[OK] 아래로 스크롤 {times}회 완료")
 
     def scroll_up(self, times=1):
         """화면 위로 스크롤 (기본 1회)"""
-        size = self.driver.get_window_size()
-        w, h = size['width'], size['height']
-
-        for _ in range(times):
-            actions = ActionChains(self.driver)
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.2)
-            actions.w3c_actions.pointer_action.pointer_down()
-            actions.w3c_actions.pointer_action.move_to_location(w * 0.5, h * 0.8)
-            actions.w3c_actions.pointer_action.pointer_up()
-            actions.perform()
-            time.sleep(0.5)
-
+        self._swipe(from_y_ratio=0.2, to_y_ratio=0.8, times=times)
         print(f"[OK] 위로 스크롤 {times}회 완료")
 
-    def scroll_to_text(self, text):
-        """텍스트가 보일 때까지 스크롤 (Android UiScrollable 사용)"""
-        print(f"> '{text}' 요소를 찾는 중 (스크롤)...")
+    def scroll_to_text(self, text, max_swipes=8):
+        """텍스트가 보일 때까지 스크롤 (Android UiScrollable 사용)
+
+        Args:
+            max_swipes: 최대 스와이프 횟수 (기본 8). 기본값 30에서 줄여
+                        요소가 없을 때의 타임아웃을 ~20초 이내로 제한.
+        """
+        print(f"> '{text}' 요소를 찾는 중 (스크롤, 최대 {max_swipes}회)...")
         try:
             self.driver.find_element(
                 AppiumBy.ANDROID_UIAUTOMATOR,
                 f'new UiScrollable(new UiSelector().scrollable(true).instance(0))'
+                f'.setMaxSearchSwipes({max_swipes})'
                 f'.scrollIntoView(new UiSelector().textContains("{text}").instance(0))'
             )
             time.sleep(0.5)
             print(f"[OK] '{text}' 발견!")
         except Exception as e:
-            print(f"[WARN] '{text}' 스크롤 찾기 실패: {e}")
+            print(f"[WARN] '{text}' 스크롤 찾기 실패 ({max_swipes}회 시도): {e}")
             self.scroll_down(2)
+
+    def scroll_until_visible(self, xpath, max_scrolls=10, check_timeout=1):
+        """scroll_down + XPath 체크를 반복해 요소를 찾는다 (UiScrollable 미사용).
+        UiScrollable이 느린 기기에서 대체 수단으로 사용한다.
+
+        Args:
+            max_scrolls: 최대 스크롤 횟수. 초과 시 마지막으로 wait_for_element 시도.
+            check_timeout: 각 체크당 대기 시간(초). 짧을수록 빠름.
+        """
+        for i in range(max_scrolls):
+            try:
+                return WebDriverWait(self.driver, check_timeout).until(
+                    EC.presence_of_element_located((AppiumBy.XPATH, xpath))
+                )
+            except Exception:
+                print(f"> 스크롤 중... ({i + 1}/{max_scrolls})")
+                self.scroll_down(1)
+        # 마지막 시도
+        return self.wait_for_element(xpath, timeout=5)
 
     def tap_coordinate(self, x_ratio, y_ratio, step_name="Tap"):
         """비율 기반 좌표 클릭"""
@@ -128,6 +144,18 @@ class BasePage:
         actions.w3c_actions.pointer_action.click()
         actions.perform()
 
-        time.sleep(1)
         if self.ss:
             self.ss(step_name.replace(" ", "_"))
+
+    def scroll_to_bottom(self, max_swipes=12):
+        """페이지 최하단까지 스크롤 (내용이 더 없을 때까지)"""
+        prev_source = None
+        for i in range(max_swipes):
+            current_source = self.driver.page_source
+            if current_source == prev_source:
+                print(f"[OK] 최하단 도달 ({i}회 스크롤)")
+                break
+            prev_source = current_source
+            self._swipe(from_y_ratio=0.8, to_y_ratio=0.2, times=1)
+        else:
+            print(f"[OK] 최하단 스크롤 완료 (최대 {max_swipes}회)")

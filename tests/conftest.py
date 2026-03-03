@@ -26,9 +26,10 @@ def run_id():
 
 # ── 드라이버 ─────────────────────────────────────────────────
 @pytest.fixture(scope="session")
-def driver_setup():
+def driver_setup(reporter):
     print("\n[INFO] Appium 드라이버 초기화 시작...")
     options = UiAutomator2Options().load_capabilities(CAPABILITIES)
+    options.set_capability('appium:uiautomator2ServerInstallTimeout', 60000)
     try:
         driver = webdriver.Remote(APPIUM_SERVER_URL, options=options)
         driver.implicitly_wait(5)
@@ -45,9 +46,24 @@ def driver_setup():
             lambda d: d.current_package == CAPABILITIES['appPackage']
         )
         print("[OK] 앱 연결 성공!")
+        try:
+            info = driver.execute_script('mobile: deviceInfo')
+            model = info.get('model', '') if isinstance(info, dict) else ''
+            android_ver = info.get('platformVersion', '') if isinstance(info, dict) else ''
+            if not (model or android_ver):
+                caps = driver.capabilities
+                model = caps.get('deviceModel', '')
+                android_ver = caps.get('platformVersion', '')
+            reporter.set_device(model, android_ver)
+            print(f"[INFO] 기기 정보: {model} | Android {android_ver}")
+        except Exception:
+            pass
         yield driver
     except Exception as e:
         print(f"[ERROR] 드라이버 초기화 실패: {e}")
+        reporter.start_scenario("드라이버 초기화 실패")
+        reporter.step(f"Appium/디바이스 연결 오류: {str(e)}", "FAILED")
+        reporter.end_scenario("FAILED", error=e)
         raise
     finally:
         if 'driver' in locals() and driver:
@@ -139,10 +155,12 @@ def scenario_context(reporter, name, ss, fail_prefix):
         reporter.end_scenario("PASSED")
     except Exception as e:
         shot = ss(f"{fail_prefix}_FAIL")
-        # 오류 메시지를 자르지 않고 전체 전달, end_scenario에도 error 객체 전달 (V1.3.3 대응)
-        reporter.step(f"오류: {str(e)}", "FAILED", shot)
-        reporter.end_scenario("FAILED", error=e)
-        pytest.fail(str(e))
+        # 오류 메시지를 자르지 않고 전체 전달하되, step 이름은 첫 줄만 표시
+        full_err = str(e)
+        short_err = full_err.split('\n')[0][:100] + ('...' if len(full_err.split('\n')[0]) > 100 else '')
+        reporter.step(f"오류: {short_err}", "FAILED", shot)
+        reporter.end_scenario("FAILED", error=full_err)
+        pytest.fail(full_err)
 
 
 # ── 각 테스트 전/후 처리 ──────────────────────────────────────

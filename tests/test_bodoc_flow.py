@@ -1,18 +1,4 @@
 # -*- coding: utf-8 -*-
-# ══════════════════════════════════════════════════════════════════
-# 보닥 앱 자동화 테스트 — 시나리오 목록
-# ──────────────────────────────────────────────────────────────────
-# S1  앱 런치            앱 실행 후 초기화면 핵심 요소 존재 확인
-# S2  카카오 로그인       카카오 계정 로그인 → 홈 화면 진입 확인
-# S3  홈 탭             종합진단·보험료·숨은보험금·내보험추가 노출 확인
-# S4  진단 탭           진단 탭 진입 → 내 보험료 금액 노출 확인
-# S5  상품 탭           상품 탭 스크롤 → 추천 상품 섹션 타이틀 노출 확인
-# S6  건강 탭           건강 탭 스크롤 → 건강 기록 섹션 타이틀 노출 확인
-# S7  보상 탭           보상 탭 스크롤 → 보상 사례 섹션 타이틀 노출 확인
-# S8  전체 메뉴         전체 메뉴 진입 → 5개 섹션 타이틀 순서대로 노출 확인
-# S9  (미사용)
-# S10 마이데이터 연동    내 보험 추가 → 40개 연결 → 진단 수행 (현재 SKIP)
-# ══════════════════════════════════════════════════════════════════
 import pytest
 import time
 from appium.webdriver.common.appiumby import AppiumBy
@@ -30,33 +16,33 @@ from pages.menu_page import MenuPage
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 1 : 앱 런치
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_1_app_launch_initial_screen(driver, ss, reporter):
-    """
-    앱 런치
-    [목적] 앱이 정상적으로 실행되고 초기화면 핵심 요소가 존재하는지 확인
-    [재현] 앱 실행 → 1초 대기 → 화면 요소 존재 여부 체크
-    [성공] 카카오·홈·보닥·보험 중 하나 이상 노출
-    """
-    with scenario_context(reporter, "S1 앱 런치", ss, "S1"):
-        time.sleep(1)
+def test_scenario_1_app_launch(driver, ss, reporter):
+    """앱 실행 및 화면 진입:
+    앱 실행 → 초기화면 진입 → 로그인 화면 또는 홈 화면 중 하나 확인"""
+    with scenario_context(reporter, "시나리오1_앱_런치", ss, "S1"):
+        # 1️⃣ 앱 초기 로드 대기 — 로그인 버튼 또는 홈 탭 중 하나가 나타날 때까지
+        try:
+            WebDriverWait(driver, 15).until(
+                lambda d: (
+                    _try_find(d, "//*[@text='카카오로 시작하기']")
+                    or _try_find(d, "//*[@text='홈']")
+                )
+            )
+        except Exception:
+            shot = ss("S1_FAIL_App_Not_Loaded")
+            reporter.step("앱 초기 화면 로드 실패", "FAILED", shot)
+            raise AssertionError("15초 내에 앱 초기 화면이 표시되지 않았습니다.")
 
-        shot = ss("S1_Entry_LaunchScreen")
-        reporter.step("앱 실행 후 초기화면 진입", "PASSED", shot)
+        shot = ss("S1_2_Entry_LaunchScreen")
+        reporter.step("앱 실행 및 초기화면 진입", "PASSED", shot)
 
-        found = any(
-            _try_find(driver, xpath)
-            for xpath in [
-                "//*[contains(@text,'카카오')]",
-                "//*[@text='홈']",
-                "//*[contains(@text,'보닥')]",
-                "//*[contains(@text,'보험')]",
-            ]
-        )
-
-        if found:
-            reporter.step("초기화면 핵심 요소 확인", "PASSED")
+        # 2️⃣ 화면 상태 판별 및 검증
+        if _try_find(driver, "//*[@text='홈']"):
+            reporter.step("홈 화면 진입 확인 (로그인 상태)", "PASSED", shot)
+        elif _try_find(driver, "//*[@text='카카오로 시작하기']"):
+            reporter.step("로그인 화면 진입 확인 (미로그인 상태)", "PASSED", shot)
         else:
-            reporter.step("초기화면 요소 미발견", "FAILED")
+            reporter.step("앱 화면 요소 노출 확인", "FAILED", shot)
             raise AssertionError("앱 초기 화면 요소를 찾을 수 없습니다.")
 
         print("[완료] 시나리오 1 성공")
@@ -65,119 +51,156 @@ def test_scenario_1_app_launch_initial_screen(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 2 : 카카오 로그인
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_2_kakao_login_home_entry(driver, ss, reporter):
-    """
-    카카오 로그인
-    [목적] 카카오 계정으로 로그인 후 홈 화면까지 정상 진입하는지 확인
-    [재현] 이미 로그인 상태이면 스킵 → 권한 처리 → 카카오로 시작하기 클릭
-           → 계속하기 → 계정 선택 → 홈 탭 진입 대기
-    [성공] 로그인 완료 후 홈 탭(하단 탭바)이 15초 이내 노출
-    """
-    with scenario_context(reporter, "S2 카카오 로그인", ss, "S2"):
+def test_scenario_2_kakao_login(driver, ss, reporter):
+    """카카오 계정 로그인 (로그인된 경우 스킵):
+    화면 진입 → 로그인 여부 확인 → 권한 허용 처리 → 카카오로 시작하기 클릭
+    → 웹뷰 전환 → 계속하기 클릭 → 카카오 계정 선택 → 홈 화면 진입 확인"""
+    with scenario_context(reporter, "시나리오2_카카오_로그인", ss, "S2"):
         intro = IntroPage(driver, ss)
         login = LoginPage(driver, ss)
 
-        shot = ss("S2_Entry_InitialScreen")
-        reporter.step("앱 초기화면 진입 확인", "PASSED", shot)
+        # 1️⃣ 앱 초기화면 진입
+        shot = ss("S2_1_Entry_InitialScreen")
+        reporter.step("앱 초기화면 진입", "PASSED", shot)
 
-        # 이미 홈 화면(로그인됨)이면 스킵
+        # 2️⃣ 이미 로그인 상태인지 확인 (홈 화면 노출 여부)
         if _try_find(driver, "//*[@text='홈']"):
-            shot = ss("S2_Already_Logged_In")
-            reporter.step("이미 로그인 상태 — 로그인 단계 스킵", "PASSED", shot)
+            shot = ss("S2_2_Already_Logged_In")
+            reporter.step("이미 로그인 상태 확인 (스킵)", "PASSED", shot)
             reporter.end_scenario("PASSED")
             print("[완료] 시나리오 2 — 이미 로그인됨")
             return
 
-        # 초기 권한 화면 처리 (없어도 무시)
+        # 3️⃣ 초기 권한 화면 처리 (없어도 무시)
+        # (별도의 step 기록보다는 동작 수행 중심)
         intro.process_initial_rights()
         intro.allow_phone_permission()
         intro.confirm_notification_guide()
         intro.allow_notification_permission()
 
-        # 로그인 화면 확인
+        # 4️⃣ 로그인 화면 확인 ('카카오로 시작하기' 버튼)
         if not _try_find(driver, "//*[@text='카카오로 시작하기']"):
-            shot = ss("S2_FAIL_LoginScreen_Not_Found")
-            reporter.step("카카오 로그인 화면 미진입", "FAILED", shot)
+            shot = ss("S2_4_FAIL_LoginScreen_Not_Found")
+            reporter.step("로그인 화면 (카카오 버튼) 확인", "FAILED", shot)
             raise AssertionError("카카오 로그인 버튼을 찾을 수 없습니다.")
 
-        shot = ss("S2_Entry_LoginScreen")
+        shot = ss("S2_4_Entry_LoginScreen")
         reporter.step("로그인 화면 진입 확인", "PASSED", shot)
 
+        # 5️⃣ 카카오 로그인 시작 및 웹뷰 전환 확인
         login.start_kakao_login()
-        time.sleep(2)
-        shot = ss("S2_Switch_KakaoWebView")
-        reporter.step("카카오 웹뷰 전환", "PASSED", shot)
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: any('WEBVIEW' in c for c in d.contexts)
+            )
+            shot = ss("S2_5_Switch_KakaoWebView")
+            reporter.step("카카오 로그인 버튼 클릭 및 웹뷰 전환 확인", "PASSED", shot)
+        except Exception:
+            shot = ss("S2_5_FAIL_KakaoWebView")
+            reporter.step("웹뷰 전환 실패", "FAILED", shot)
+            raise AssertionError("카카오 로그인 후 웹뷰로 전환되지 않았습니다.")
 
+        # 6️⃣ 카카오 계속하기 클릭
         login.click_kakao_continue()
-        time.sleep(2)
-        shot = ss("S2_Switch_After_Continue")
+        shot = ss("S2_6_Switch_After_Continue")
         reporter.step("카카오 '계속하기' 클릭", "PASSED", shot)
 
+        # 7️⃣ 카카오 계정 선택
         login.select_first_kakao_account()
-        time.sleep(3)
-        shot = ss("S2_Switch_After_Account_Select")
-        reporter.step("첫 번째 카카오 계정 선택", "PASSED", shot)
+        shot = ss("S2_7_Switch_After_Account_Select")
+        reporter.step("카카오 계정 선택 완료", "PASSED", shot)
 
+        # 8️⃣ 로그인 완료 후 홈 화면 전환 대기 및 확인
         try:
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((AppiumBy.XPATH, "//*[@text='홈']"))
             )
-            shot = ss("S2_Switch_HomeTab_Reached")
-            reporter.step("홈 화면 진입 확인", "PASSED", shot)
+            shot = ss("S2_8_Switch_HomeTab_Reached")
+            reporter.step("로그인 완료 및 홈 화면 전환 확인", "PASSED", shot)
         except Exception:
-            shot = ss("S2_FAIL_HomeTab_Not_Reached")
-            reporter.step("홈 화면 전환 실패", "FAILED", shot)
+            shot = ss("S2_8_FAIL_HomeTab_Not_Reached")
+            reporter.step("로그인 완료 및 홈 화면 전환 확인", "FAILED", shot)
             raise AssertionError("로그인 후 홈 화면으로 이동하지 않았습니다.")
+
+        # 9️⃣ 로그인 상태 최종 검증 — 하단 탭바 5개 노출 확인
+        try:
+            login.verify_logged_in()
+            shot = ss("S2_9_LoggedIn_TabBar_Verified")
+            reporter.step("하단 탭바(홈·진단·상품·건강·보상) 노출 확인 — 로그인 상태 검증", "PASSED", shot)
+        except AssertionError as e:
+            shot = ss("S2_9_FAIL_TabBar_Missing")
+            reporter.step(f"로그인 상태 검증 실패: {e}", "FAILED", shot)
+            raise
 
         print("[완료] 시나리오 2 성공")
 
 
 # ══════════════════════════════════════════════════════════════════
-# 시나리오 3 : 홈 탭 요소 확인 + 하단까지 스크롤
+# 시나리오 3 : 홈 탭 주요 요소 확인
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_3_home_key_elements_visible(driver, ss, reporter):
-    """
-    홈 탭 검증
-    [목적] 홈 탭의 주요 콘텐츠(보험 종합진단·보험료·숨은보험금 등)가 정상 노출되는지 확인
-    [재현] 홈 탭 진입 → 상단 요소 확인 → 하단까지 스크롤하며 추가 요소 확인
-    [성공] 보험 종합진단·매월 내는 보험료·숨은 보험금·내 보험 추가 노출
-    """
-    with scenario_context(reporter, "S3 홈 탭 검증", ss, "S3"):
+def test_scenario_3_home_tab(driver, ss, reporter):
+    """홈 탭 상단·하단 요소 확인:
+    홈 탭 진입 → 홈 탭 네비게이션·보험 종합진단·매월 내는 보험료 확인
+    → 스크롤 후 숨은 보험금·손해사정사·내 보험 추가 확인"""
+    with scenario_context(reporter, "시나리오3_홈탭_검증", ss, "S3"):
         home = HomePage(driver, ss)
 
+        # 1️⃣ 홈 탭 진입 (go_home 내부에서 wait_for_home으로 대기)
         home.go_home()
-        time.sleep(1)
-        shot = ss("S3_Entry_HomeTab")
+        shot = ss("S3_1_Entry_HomeTab")
         reporter.step("홈 탭 진입", "PASSED", shot)
 
+        # 2️⃣ 홈 탭 요소 (상단/하단) 스크롤하며 확인 (verify_home_elements 내부에 step 구현됨)
         home.verify_home_elements(ss, reporter)
-        home.scroll_to_bottom(ss, reporter)
 
         print("[완료] 시나리오 3 성공")
 
 
 # ══════════════════════════════════════════════════════════════════
-# 시나리오 4 : 진단 탭 요소 확인 + 하단까지 스크롤
+# 시나리오 3-1 : 홈 탭 스크롤 단계별 요소 확인
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_4_diagnosis_insurance_premium_visible(driver, ss, reporter):
-    """
-    진단 탭 검증
-    [목적] 진단 탭 진입 후 '내 보험료' 탭에서 월 보험료 금액이 정상 노출되는지 확인
-    [재현] 진단 탭 클릭 → 진단 요소 확인 → 하단 스크롤 → 내 보험료 탭 클릭
-           → 매월 내는 보험료 타이틀 및 금액 노출 확인
-    [성공] '매월 내는 보험료' 타이틀과 금액(원) 텍스트 노출
-    """
-    with scenario_context(reporter, "S4 진단 탭 검증", ss, "S4"):
+def test_scenario_3_1_home_tab_scroll(driver, ss, reporter):
+    """홈 탭 주요 요소 순차 스크롤 확인:
+    내 보험 종합진단 → 매월 내는 보험료 → AI 고민상담소 → 숨은 보험금 → 건강정보 확인하기"""
+    with scenario_context(reporter, "시나리오3-1_홈탭_스크롤_검증", ss, "S3_1"):
+        home = HomePage(driver, ss)
+
+        # 1️⃣ 홈 탭 진입 (go_home 내부에서 wait_for_home으로 대기)
+        home.go_home()
+        shot = ss("S3-1_1_Entry_HomeTab")
+        reporter.step("홈 탭 진입", "PASSED", shot)
+
+        # 2️⃣ 홈 탭 요소 스크롤하며 단계별 확인 (verify_home_scroll_steps 내부에 step 구현됨)
+        home.verify_home_scroll_steps(ss, reporter)
+
+        print("[완료] 시나리오 3-1 성공")
+
+
+# ══════════════════════════════════════════════════════════════════
+# 시나리오 4 : 진단 탭 요소 확인
+# ══════════════════════════════════════════════════════════════════
+def test_scenario_4_diagnosis_tab(driver, ss, reporter):
+    """진단 탭 진입 및 내 보험료 탭 금액 확인:
+    진단 탭 진입 → 진단 탭 네비게이션·보험 진단 텍스트 확인 → 하단 스크롤
+    → 내 전보험료 탭 클릭 → 매월 내는 보험료 타이틀·금액 노출 확인"""
+    with scenario_context(reporter, "시나리오4_진단탭_검증", ss, "S4"):
         diagnosis = DiagnosisPage(driver, ss)
 
-        shot = ss("S4_HomeTab_Status_Before_Switch")
-        reporter.step("전환 전 화면 상태 기록", "PASSED", shot)
+        # 1️⃣ 홈 탭 상태 확인 (전환 전) — 홈 화면이 준비된 것을 확인
+        WebDriverWait(driver, 10).until(
+            lambda d: _try_find(d, "//*[@text='홈']")
+        )
+        shot = ss("S4_1_HomeTab_Status_Before_Switch")
+        reporter.step("홈 탭 상태 (전환 전)", "PASSED", shot)
 
+        # 2️⃣ 진단 탭으로 이동 및 상단 요소 노출 확인
         diagnosis.go_diagnosis(ss, reporter)
         diagnosis.verify_diagnosis_elements(ss, reporter)
-        diagnosis.scroll_to_bottom(ss, reporter)
 
-        # 내 보험료 탭 확인
+        # 3️⃣ 화면 하단으로 스크롤 이동
+        diagnosis.scroll_to_bottom(ss, reporter)
+        
+        # 4️⃣ 탭 이동 후 내 보험료 확인
         diagnosis.verify_insurance_premium(ss, reporter)
 
         print("[완료] 시나리오 4 성공")
@@ -186,17 +209,17 @@ def test_scenario_4_diagnosis_insurance_premium_visible(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 5 : 상품 탭 검증
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_5_product_recommend_section_visible(driver, ss, reporter):
-    """
-    상품 탭 검증
-    [목적] 상품 탭 스크롤 시 '보닥 회원만을 위한 추천 상품' 섹션이 노출되는지 확인
-    [재현] 상품 탭 클릭 → 아래로 스크롤 → 추천 상품 타이틀 노출 확인
-    [성공] '보닥 회원만을 위한 추천 상품' 타이틀 텍스트 노출
-    """
+def test_scenario_5_product_tab(driver, ss, reporter):
+    """상품 탭 요소 확인:
+    상품 탭 진입 → 스크롤 탐색 → '보닥 회원만을 위한 추천 상품' 타이틀 노출 확인"""
     from pages.product_page import ProductPage
-    with scenario_context(reporter, "S5 상품 탭 검증", ss, "S5"):
+    with scenario_context(reporter, "시나리오5_상품탭_검증", ss, "S5"):
         product = ProductPage(driver, ss)
+
+        # 1️⃣ 상품 탭 진입
         product.go_product(ss, reporter)
+
+        # 2️⃣ 화면 스크롤 후 대상 타이틀 확인
         product.verify_elements(ss, reporter)
         print("[완료] 시나리오 5 성공")
 
@@ -204,17 +227,17 @@ def test_scenario_5_product_recommend_section_visible(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 6 : 건강 탭 검증
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_6_health_record_section_visible(driver, ss, reporter):
-    """
-    건강 탭 검증
-    [목적] 건강 탭 스크롤 시 '건강 기록' 섹션이 정상 노출되는지 확인
-    [재현] 건강 탭 클릭 → 아래로 스크롤 → 건강 기록 타이틀 노출 확인
-    [성공] '건강 기록' 타이틀 텍스트 노출
-    """
+def test_scenario_6_health_tab(driver, ss, reporter):
+    """건강 탭 요소 확인:
+    건강 탭 진입 → 스크롤 탐색 → '건강 기록' 타이틀 노출 확인"""
     from pages.health_page import HealthPage
-    with scenario_context(reporter, "S6 건강 탭 검증", ss, "S6"):
+    with scenario_context(reporter, "시나리오6_건강탭_검증", ss, "S6"):
         health = HealthPage(driver, ss)
+
+        # 1️⃣ 건강 탭 진입
         health.go_health(ss, reporter)
+
+        # 2️⃣ 화면 스크롤 후 건강 기록 확인
         health.verify_elements(ss, reporter)
         print("[완료] 시나리오 6 성공")
 
@@ -222,17 +245,17 @@ def test_scenario_6_health_record_section_visible(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 7 : 보상 탭 검증
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_7_reward_case_section_visible(driver, ss, reporter):
-    """
-    보상 탭 검증
-    [목적] 보상 탭 스크롤 시 보상 사례 또는 보상 질문 섹션이 노출되는지 확인
-    [재현] 보상 탭 클릭 → 아래로 스크롤 → 보상 사례/질문 타이틀 노출 확인
-    [성공] '유형별 보상 사례' 또는 '자주 묻는 보상 질문' 중 하나 이상 노출
-    """
+def test_scenario_7_reward_tab(driver, ss, reporter):
+    """보상 탭 요소 확인:
+    보상 탭 진입 → 스크롤 탐색 → 유형별 보상 사례·자주 묻는 보상 질문 중 하나 이상 노출 확인"""
     from pages.reward_page import RewardPage
-    with scenario_context(reporter, "S7 보상 탭 검증", ss, "S7"):
+    with scenario_context(reporter, "시나리오7_보상탭_검증", ss, "S7"):
         reward = RewardPage(driver, ss)
+
+        # 1️⃣ 보상 탭 진입
         reward.go_reward(ss, reporter)
+
+        # 2️⃣ 화면 스크롤 후 보상 관련 타이틀 영역 확인
         reward.verify_elements(ss, reporter)
         print("[완료] 시나리오 7 성공")
 
@@ -240,49 +263,41 @@ def test_scenario_7_reward_case_section_visible(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 8 : 전체 메뉴 진입 검증
 # ══════════════════════════════════════════════════════════════════
-def test_scenario_8_fullmenu_sections_visible(driver, ss, reporter):
-    """
-    전체 메뉴 검증
-    [목적] 전체 메뉴에서 스크롤 시 5개 섹션 타이틀이 순서대로 모두 노출되는지 확인
-    [재현] 메뉴 버튼 클릭 → 순서대로 스크롤하며 섹션 확인
-           (보험 → 보상/청구 → 생활/건강 → 정보 → 고객서비스)
-    [성공] 5개 섹션 타이틀 전부 노출 (하나라도 미노출 시 즉시 실패)
-    """
-    with scenario_context(reporter, "S8 전체 메뉴 검증", ss, "S8"):
+def test_scenario_8_menu_validation(driver, ss, reporter):
+    """전체 메뉴 진입 확인:
+    전체 메뉴 열기 → 보험 → 보상/청구 → 생활/건강 → 정보 → 고객서비스 섹션 확인"""
+    with scenario_context(reporter, "시나리오8_메뉴_검증", ss, "S8"):
         menu = MenuPage(driver, ss)
-
+        
+        # 1️⃣ 우측 하단의 전체 메뉴 열기
         menu.open()
-        shot = ss("S8_Menu_Opened")
-        reporter.step("전체 메뉴 진입", "PASSED", shot)
-
+        shot = ss("S8_1_Menu_Opened")
+        reporter.step("전체 메뉴 열기 완료", "PASSED", shot)
+        
+        # 2️⃣ 주요 메뉴 섹션 노출 확인 (실패 시 예외 발생)
         menu.verify_elements(ss, reporter)
-
-        # 홈으로 복귀 (다음 테스트를 위해)
+        
+        # 3️⃣ 확인 완료 후 홈으로 복귀 (다음 테스트를 위해)
         driver.back()
-        time.sleep(1)
+        WebDriverWait(driver, 10).until(
+            lambda d: _try_find(d, "//*[@text='홈']")
+        )
         print("[완료] 시나리오 8 성공")
 
 
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 10 : 홈 탭에서 마이데이터 연동
 # ══════════════════════════════════════════════════════════════════
-@pytest.mark.skip(reason="외부 인증(네이버) 의존 — 전용 테스트 환경 구성 후 활성화 예정")
-def test_scenario_10_mydata_insurance_connect_flow(driver, ss, reporter):
-    """
-    마이데이터 연동
-    [목적] 마이데이터 연동을 통해 40개 보험사 연결 후 보험 진단까지 수행되는지 확인
-    [재현] 홈 → 내 보험 추가하기 → 40개 연결 → 네이버 인증 → 약관 동의
-           → 연결 완료 대기 → 결과 확인 → 보험 진단받기 → 채팅 종료
-    [성공] 채팅 종료까지 전 단계 오류 없이 완료
-    [비고] 네이버 인증서 등 외부 서비스 의존 — 현재 SKIP 처리
-    """
-    with scenario_context(reporter, "S10 마이데이터 연동", ss, "S10"):
+def test_scenario_10_mydata(driver, ss, reporter):
+    """홈 탭 → 내 보험 추가하기:
+    홈 탭 → 내 보험 추가하기 → 40개 연결 → 네이버 인증 → 약관 → 진단받기 → 채팅 종료"""
+    with scenario_context(reporter, "시나리오10_마이데이터_연동", ss, "S10"):
         from pages.mydata_flow import MydataFlow
 
         home = HomePage(driver, ss)
         ins = MydataFlow(driver, ss)
 
-        # 이전 세션 웹뷰 등 초기화
+        # 1️⃣ 이전 세션 웹뷰 등 초기화 및 홈 탭 복귀 처리
         try:
             driver.switch_to.context('NATIVE_APP')
         except Exception:
@@ -291,47 +306,60 @@ def test_scenario_10_mydata_insurance_connect_flow(driver, ss, reporter):
             if _try_find(driver, "//*[@text='홈']"):
                 break
             driver.press_keycode(4)
-            time.sleep(0.7)
+            try:
+                WebDriverWait(driver, 2).until(
+                    lambda d: _try_find(d, "//*[@text='홈']")
+                )
+                break
+            except Exception:
+                pass
 
+        # 2️⃣ 홈 탭 진입 (go_home 내부 wait_for_home이 홈 노출을 보장)
         home.go_home()
-        time.sleep(1)
-        shot = ss("S10_Entry_HomeTab")
+        shot = ss("S10_2_Entry_HomeTab")
         reporter.step("홈 탭 진입", "PASSED", shot)
 
+        # 3️⃣ '내 보험 추가하기' 클릭 및 연결 화면 진입
         home.click_add_insurance()
-        shot = ss("S10_Entry_Insurance_Connect")
-        reporter.step("'내 보험 추가하기' 클릭 → 보험 연결 화면 진입", "PASSED", shot)
+        shot = ss("S10_3_Entry_Insurance_Connect")
+        reporter.step("내 보험 추가하기 클릭 → 보험 연결 화면 진입", "PASSED", shot)
 
+        # 4️⃣ '40개 연결하기' 클릭
         ins.click_connect_40()
-        shot = ss("S10_After_Connect40_Click")
-        reporter.step("'40개 연결하기' 클릭", "PASSED", shot)
+        shot = ss("S10_4_After_Connect40_Click")
+        reporter.step("40개 연결하기 클릭", "PASSED", shot)
 
+        # 5️⃣ 네이버 인증서 선택
         ins.select_naver_cert()
-        shot = ss("S10_Entry_Naver_Auth")
+        shot = ss("S10_5_Entry_Naver_Auth")
         reporter.step("네이버 인증서 선택", "PASSED", shot)
 
+        # 6️⃣ 동의하고 계속하기 클릭
         ins.agree_and_continue()
-        shot = ss("S10_After_Agree_Click")
-        reporter.step("'동의하고 계속하기' 클릭", "PASSED", shot)
+        shot = ss("S10_6_After_Agree_Click")
+        reporter.step("동의하고 계속하기", "PASSED", shot)
 
+        # 7️⃣ 마이데이터 연결 대기
         ins.wait_for_connection()
-        shot = ss("S10_DataConnect_Complete")
-        reporter.step("마이데이터 연결 완료 대기", "PASSED", shot)
+        shot = ss("S10_7_DataConnect_Complete")
+        reporter.step("마이데이터 연결 대기 완료", "PASSED", shot)
 
+        # 8️⃣ 결과 확인 화면에서 예/확인 처리
         ins.click_final_confirms()
-        shot = ss("S10_Result_Confirm_Complete")
-        reporter.step("연결 결과 확인 클릭", "PASSED", shot)
+        shot = ss("S10_8_Result_Confirm_Complete")
+        reporter.step("결과 확인 클릭 완료", "PASSED", shot)
 
+        # 9️⃣ 추가 약관 동의 안내 처리
         ins.dismiss_extra_agreements()
-        shot = ss("S10_Extra_Agree_Complete")
-        reporter.step("추가 약관 동의 처리", "PASSED", shot)
+        shot = ss("S10_9_Extra_Agree_Complete")
+        reporter.step("추가 약관 동의 처리 완료", "PASSED", shot)
 
         ins.get_insurance_diagnosis()
-        shot = ss("S10_Entry_Diagnosis_Result")
-        reporter.step("'보험 진단받기' 클릭 → 진단 화면 진입", "PASSED", shot)
+        shot = ss("S10_10_Entry_Diagnosis_Result")
+        reporter.step("보험 진단받기 클릭 → 진단 화면 진입", "PASSED", shot)
 
         ins.close_chat()
-        shot = ss("S10_Chat_Closed")
+        shot = ss("S10_11_Chat_Closed")
         reporter.step("전문가 채팅 종료", "PASSED", shot)
 
         print("[완료] 시나리오 10 성공")

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from pages.base_page import BasePage
+from selenium.common.exceptions import TimeoutException
 
 
 class MenuPage(BasePage):
@@ -57,7 +58,7 @@ class MenuPage(BasePage):
         """전체 메뉴 스크롤 후 5개 섹션 타이틀 노출 확인"""
         for eng_id, kor_name, scroll_keyword, xpath, extra_scrolls in self.SECTION_CHECKS:
             if reporter:
-                reporter.step(f"'{kor_name}' 섹션 탐색 중")
+                reporter.step(f"섹션 탐색 중: {kor_name}")
 
             # 항목에 따라 추가 스크롤 먼저 수행
             if extra_scrolls:
@@ -69,14 +70,15 @@ class MenuPage(BasePage):
             try:
                 self.wait_for_element(xpath, timeout=7)
                 if reporter:
-                    reporter.step(f"'{kor_name}' 노출 확인", "PASSED")
+                    reporter.step(f"섹션 타이틀 노출 확인: {kor_name}", "PASSED")
                 if ss_func:
                     shot = ss_func(f"S8_Section_{eng_id}")
                     if reporter:
-                        reporter.step(f"{kor_name} 섹션 스크린샷", "PASSED", shot)
-            except Exception:
-                if ss_func:
-                    ss_func(f"S8_FAIL_Section_{eng_id}")
+                        reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
+            except TimeoutException:
+                shot = ss_func(f"S8_FAIL_Section_{eng_id}") if ss_func else None
+                if reporter:
+                    reporter.step(f"섹션 타이틀 미발견: {kor_name}", "FAILED", shot)
                 raise AssertionError(
                     f"섹션 타이틀을 찾을 수 없습니다: '{kor_name}'"
                 )
