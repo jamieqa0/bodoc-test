@@ -89,6 +89,7 @@ def test_scenario_1_app_launch(driver, ss, reporter):
 # ══════════════════════════════════════════════════════════════════
 # 시나리오 2 : 초기 권한 팝업 처리
 # ══════════════════════════════════════════════════════════════════
+@pytest.mark.reset_permissions
 def test_scenario_2_initial_permissions(driver, ss, reporter):
     """초기 권한 팝업 처리 검증.
 
@@ -153,7 +154,8 @@ def test_scenario_3_kakao_login(driver, ss, reporter):
     """카카오 계정 로그인 플로우 전체 검증.
 
     성공 조건:
-      카카오 계정 선택 완료 후 홈 화면(홈 탭 + 콘텐츠 + 탭바 5개)이 정상 노출됨.
+      카카오 계정 선택 완료 후 홈 화면('홈' 탭)이 노출되면 성공.
+      탭바 전체 검증은 시나리오 4~5(홈 탭 검증)에서 수행한다.
 
     ※ 앱이 이미 로그인된 상태라면 로그인 화면이 표시되지 않아 실패합니다.
        이 경우 대시보드 UI의 Skip 버튼으로 이 시나리오를 건너뛰세요.
@@ -197,13 +199,20 @@ def test_scenario_3_kakao_login(driver, ss, reporter):
         shot = ss("S3_6_Kakao_Account_Selected")
         reporter.step("카카오 계정 선택 완료", "PASSED", shot)
 
-        # 7️⃣ 홈 화면 진입 및 검증 (성공 기준)
-        login.verify_home_screen()
-        shot = ss("S3_7_Home_Screen_Verified")
-        reporter.step(
-            "홈 화면 진입 확인 — 홈 탭 · 콘텐츠 · 탭바(홈·진단·상품·건강·보상) 노출 검증",
-            "PASSED", shot,
-        )
+        # 7️⃣ 홈 화면 진입 확인 — '홈' 탭 노출만 확인 (간소화)
+        try:
+            WebDriverWait(driver, 20).until(
+                lambda d: _element_exists(d, "//*[@text='홈']")
+            )
+        except Exception:
+            shot = ss("S3_7_FAIL_Home_Not_Reached")
+            reporter.step("로그인 후 홈 화면 미진입", "FAILED", shot)
+            raise AssertionError(
+                "카카오 로그인 후 20초 내에 홈 화면으로 이동하지 않았습니다."
+            )
+
+        shot = ss("S3_7_Home_Screen_Reached")
+        reporter.step("홈 화면 진입 확인 — '홈' 탭 노출", "PASSED", shot)
 
         print("[완료] 시나리오 3 성공")
 

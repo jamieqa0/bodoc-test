@@ -475,10 +475,20 @@ class Handler(BaseHTTPRequestHandler):
         if scenarios == 'all':
             cmd = [sys.executable, '-m', 'pytest', 'tests/test_bodoc_flow.py', '-v', '--tb=short']
         else:
-            kw = ' or '.join(
-                s if s.startswith('test_scenario_') else f'test_scenario_{s}'
-                for s in scenarios.split(',')
-            )
+            # 시나리오 ID → 정확한 함수 이름으로 매핑하여 부분 매칭 오류 방지
+            # (예: ID "1" → "test_scenario_1_app_launch", "-k test_scenario_1"은
+            #  test_scenario_10, test_scenario_11도 매칭하므로 정확한 이름을 사용)
+            all_scenarios, _ = _extract_scenarios()
+            id_to_name = {str(s['id']): s['name'] for s in all_scenarios}
+            parts = []
+            for s in scenarios.split(','):
+                if s.startswith('test_scenario_'):
+                    parts.append(s)
+                elif s in id_to_name:
+                    parts.append(id_to_name[s])
+                else:
+                    parts.append(f'test_scenario_{s}')
+            kw = ' or '.join(parts)
             cmd = [sys.executable, '-m', 'pytest', 'tests/test_bodoc_flow.py', '-v', '--tb=short', '-k', kw]
 
         add_log(f'[TEST] 실행: {" ".join(cmd)}')

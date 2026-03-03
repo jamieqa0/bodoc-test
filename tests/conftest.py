@@ -6,6 +6,11 @@ def pytest_configure(config):
         "observe_launch: 앱 런치 시퀀스(스플래시 + 토스트)를 직접 관찰하는 테스트. "
         "app_reset이 초기 화면 대기를 생략하고 즉시 제어권을 넘긴다."
     )
+    config.addinivalue_line(
+        "markers",
+        "reset_permissions: 테스트 전 앱 데이터를 초기화(pm clear)하여 "
+        "권한 팝업이 다시 노출되도록 한다. 로그인 상태도 함께 초기화된다."
+    )
 
 
 import atexit
@@ -57,9 +62,7 @@ def _unlock_screen(driver):
     adb shell wm dismiss-keyguard 를 추가로 호출한다.
     """
     driver.execute_script('mobile: unlock')
-    adb_dir = CAPABILITIES.get('appium:chromedriverExecutableDir', '')
-    adb_candidate = os.path.join(adb_dir, 'adb.exe') if adb_dir else ''
-    adb = adb_candidate if os.path.exists(adb_candidate) else (shutil.which('adb') or 'adb')
+    adb = _get_adb()
     device = CAPABILITIES.get('deviceName', '')
     try:
         subprocess.run(
@@ -68,6 +71,36 @@ def _unlock_screen(driver):
         )
     except Exception:
         pass
+
+
+def _get_adb():
+    """adb 실행 경로를 반환한다."""
+    adb_dir = CAPABILITIES.get('appium:chromedriverExecutableDir', '')
+    adb_candidate = os.path.join(adb_dir, 'adb.exe') if adb_dir else ''
+    return adb_candidate if os.path.exists(adb_candidate) else (shutil.which('adb') or 'adb')
+
+
+def _reset_app_for_permissions(pkg):
+    """앱 데이터를 완전히 초기화하여 권한 팝업이 다시 나타나도록 한다.
+
+    adb shell pm clear 를 실행하여 앱의 모든 데이터를 삭제한다.
+    이로 인해 로그인 상태, 캐시, SharedPreferences 등이 모두 초기화되므로
+    접근 권한 안내 화면(인앱)과 시스템 권한 다이얼로그 모두 다시 노출된다.
+    """
+    adb = _get_adb()
+    device = CAPABILITIES.get('deviceName', '')
+    cmd = [adb]
+    if device:
+        cmd += ['-s', device]
+    cmd += ['shell', 'pm', 'clear', pkg]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if 'Success' in (result.stdout or ''):
+            print(f"[RESET] 앱 데이터 초기화 성공 — 권한 팝업이 다시 나타납니다")
+        else:
+            print(f"[RESET-WARN] pm clear 결과: {(result.stdout or '').strip()} {(result.stderr or '').strip()}")
+    except Exception as e:
+        print(f"[RESET-ERR] 앱 데이터 초기화 실패: {e}")
 
 
 # ── run_id ───────────────────────────────────────────────────────
@@ -203,6 +236,10 @@ def app_reset(request, driver_setup, run_id):
         print("[시나리오 0] 앱 종료 완료")
     except Exception:
         pass
+
+    # 2-1. 권한 테스트를 위한 앱 데이터 초기화 (reset_permissions 마커가 있을 때만)
+    if request.node.get_closest_marker('reset_permissions'):
+        _reset_app_for_permissions(pkg)
 
     # 3. 화면 깨우기
     _unlock_screen(driver_setup)
