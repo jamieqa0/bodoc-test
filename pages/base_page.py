@@ -158,7 +158,7 @@ class BasePage:
             prev_source = current_source
             self._swipe(from_y_ratio=0.8, to_y_ratio=0.2, times=1)
         else:
-            print(f"[OK] 최하단 스크롤 완료 (최대 {max_swipes}회)")
+            print(f"[WARN] 최대 스크롤 횟수 초과, 최하단 미확인 ({max_swipes}회)")
 
     def dismiss_any_permission_popup(self):
         """화면에 시스템 권한 팝업이 있으면 '허용'을 눌러 해제한다.

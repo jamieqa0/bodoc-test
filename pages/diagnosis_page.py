@@ -14,9 +14,9 @@ class DiagnosisPage(BasePage):
     def go_diagnosis(self, ss_func=None, reporter=None):
         self.wait_for_home()
         self.click(self.DIAGNOSIS_TAB, "DiagnosisTab_Move")
-        # 탭 전환 후 진단 탭 콘텐츠 로드 대기
+        # 탭 전환 후 진단 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
-            lambda d: d.find_elements(AppiumBy.XPATH, self.DIAGNOSIS_TAB)
+            lambda d: d.find_elements(AppiumBy.XPATH, self.DIAGNOSIS_TAB + "[@selected='true']")
         )
         if ss_func:
             shot = ss_func("DiagnosisTab_Entry")
@@ -61,7 +61,6 @@ class DiagnosisPage(BasePage):
         self.scroll_up(3)
         WebDriverWait(self.driver, 10).until(
             lambda d: d.find_elements(AppiumBy.XPATH, self.PREMIUM_TAB)
-            or d.find_elements(AppiumBy.XPATH, self.DIAGNOSIS_TAB)
         )
 
         # 2️⃣ '내 보험료' 탭 클릭

@@ -21,9 +21,9 @@ class RewardPage(BasePage):
     def go_reward(self, ss_func=None, reporter=None):
         self.wait_for_home()
         self.click(self.REWARD_ICON, "Move_To_Reward_Tab")
-        # 탭 전환 후 보상 탭 콘텐츠가 로드될 때까지 대기
+        # 탭 전환 후 보상 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
-            lambda d: d.find_elements(AppiumBy.XPATH, self.REWARD_TAB)
+            lambda d: d.find_elements(AppiumBy.XPATH, self.REWARD_TAB + "[@selected='true']")
         )
         if ss_func:
             shot = ss_func("RewardTab_Entry")

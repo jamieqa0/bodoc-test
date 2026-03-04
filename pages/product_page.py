@@ -12,9 +12,9 @@ class ProductPage(BasePage):
     def go_product(self, ss_func=None, reporter=None):
         self.wait_for_home()
         self.click(self.PRODUCT_TAB, "Move_To_Product_Tab")
-        # 탭 전환 후 상품 탭 콘텐츠가 로드될 때까지 대기
+        # 탭 전환 후 상품 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
-            lambda d: d.find_elements(AppiumBy.XPATH, self.PRODUCT_TAB)
+            lambda d: d.find_elements(AppiumBy.XPATH, self.PRODUCT_TAB + "[@selected='true']")
         )
         if ss_func:
             shot = ss_func("ProductTab_Entry")
