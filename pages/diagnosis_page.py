@@ -13,13 +13,13 @@ class DiagnosisPage(BasePage):
 
     def go_diagnosis(self, ss_func=None, reporter=None):
         self.wait_for_home()
-        self.click(self.DIAGNOSIS_TAB, "DiagnosisTab_Move")
+        self.click(self.DIAGNOSIS_TAB, "DiagnosisTabMove")
         # 탭 전환 후 진단 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
             lambda d: d.find_elements(AppiumBy.XPATH, self.DIAGNOSIS_TAB + "[@selected='true']")
         )
         if ss_func:
-            shot = ss_func("DiagnosisTab_Entry")
+            shot = ss_func("S6_1_DiagnosisTabEntry")
             if reporter:
                 reporter.step("진단탭 진입", "PASSED", shot)
 
@@ -28,7 +28,7 @@ class DiagnosisPage(BasePage):
         
         # 1️⃣ 진단 탭 네비게이션 확인
         self.wait_for_element(self.DIAGNOSIS_TAB, timeout=5)
-        shot = ss_func("S4_2_Diagnosis_Tab_Nav") if ss_func else None
+        shot = ss_func("S6_2_DiagnosisTabNav") if ss_func else None
         if reporter:
             reporter.step("진단 탭 네비게이션 노출 확인", "PASSED", shot)
         print("[OK] 진단 탭 네비게이션 확인")
@@ -36,7 +36,7 @@ class DiagnosisPage(BasePage):
         # 2️⃣ 보험 진단 텍스트 요소 확인
         diagnosis_text_xpath = "//*[contains(@text,'진단') or contains(@text,'보험료') or contains(@text,'분석')]"
         self.wait_for_element(diagnosis_text_xpath, timeout=5)
-        shot = ss_func("S4_3_Diagnosis_Text_Check") if ss_func else None
+        shot = ss_func("S6_3_DiagnosisTextCheck") if ss_func else None
         if reporter:
             reporter.step("보험 진단 관련 텍스트 노출 확인", "PASSED", shot)
         print("[OK] 보험 진단 관련 텍스트 확인")
@@ -44,12 +44,12 @@ class DiagnosisPage(BasePage):
     def scroll_to_bottom(self, ss_func=None, reporter=None):
         self.scroll_down(2)
         if ss_func:
-            shot = ss_func("S4_4_Scroll_Diagnosis_Mid")
+            shot = ss_func("S6_4_ScrollDiagnosisMid")
             if reporter:
                 reporter.step("진단 스크롤 (중간)", "PASSED", shot)
         self.scroll_down(2)
         if ss_func:
-            shot = ss_func("S4_5_Scroll_Diagnosis_Bottom")
+            shot = ss_func("S6_5_ScrollDiagnosisBottom")
             if reporter:
                 reporter.step("진단 스크롤 (하단)", "PASSED", shot)
 
@@ -66,16 +66,16 @@ class DiagnosisPage(BasePage):
         # 2️⃣ '내 보험료' 탭 클릭
         try:
             self.wait_for_element(self.PREMIUM_TAB, timeout=5)
-            self.click(self.PREMIUM_TAB, "Move_To_Premium_Tab")
+            self.click(self.PREMIUM_TAB, "MoveToPremiumTab")
         except Exception as e:
             print(f"[WARN] 탭 텍스트 클릭 실패, 좌표로 시도합니다: {e}")
-            self.tap_coordinate(0.75, 0.15, "Tap_Premium_Tab_Fallback")
+            self.tap_coordinate(0.75, 0.15, "TapPremiumTabFallback")
             # 좌표 탭 후 타이틀 등장 대기
             WebDriverWait(self.driver, 8).until(
                 lambda d: d.find_elements(AppiumBy.XPATH, self.PREMIUM_TITLE)
             )
         
-        shot = ss_func("S4_6_Diagnosis_Premium_Tab_Entry") if ss_func else None
+        shot = ss_func("S6_6_DiagnosisPremiumTabEntry") if ss_func else None
         if reporter:
             reporter.step("'내 보험료' 탭 진입", "PASSED", shot)
         
@@ -92,11 +92,11 @@ class DiagnosisPage(BasePage):
             print(f"[OK] 보험료 금액 확인됨: {amount_text}")
             
             if reporter:
-                shot = ss_func("S4_7_Premium_Amount_Check") if ss_func else None
+                shot = ss_func("S6_7_PremiumAmountCheck") if ss_func else None
                 reporter.step(f"보험료 금액 확인: {amount_text}", "PASSED", shot)
         except Exception as e:
             print(f"[FAIL] 보험료 정보 미확인: {e}")
             if reporter:
-                shot = ss_func("S4_7_FAIL_Premium_Check") if ss_func else None
+                shot = ss_func("S6_7_FAIL_PremiumCheck") if ss_func else None
                 reporter.step("보험료 정보 확인 실패", "FAILED", shot)
             raise e

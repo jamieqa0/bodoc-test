@@ -155,7 +155,10 @@ with scenario_context(reporter, "시나리오N_설명", ss, "SN"):
 outputs/screenshots/{run_id}/{MMDD-HHMM}_{ScenarioTag}_{StepName}.png
 ```
 
-예: `0226-1647_S3_Kakao_OAuth_Page_Loaded.png`
+예: `0226-1647_S3_KakaoOAuthPageLoaded.png`
+
+> **ScenarioTag 매핑 및 StepName 세부 규칙은 `plan-scenarios.md` → "스크린샷 명명 규칙" 섹션 참고.**
+> 소스 수정 시 해당 시나리오의 태그(S1~S11)와 step 번호가 규칙에 맞는지 반드시 확인할 것.
 
 ### 로그 접두어
 
@@ -190,6 +193,9 @@ outputs/screenshots/{run_id}/{MMDD-HHMM}_{ScenarioTag}_{StepName}.png
 | `GET` | `/screenshots/{run_id}/{file}` | PNG 스크린샷 제공 |
 
 모든 응답은 JSON 형식입니다. CORS가 활성화되어 있습니다 (`Access-Control-Allow-Origin: *`).
+
+> **대시보드 UI 구조, 컴포넌트, 기능 상세는 `plan-dashboard.md` 참고.**
+> `server.py` 수정 시 해당 문서를 먼저 확인할 것.
 
 ---
 

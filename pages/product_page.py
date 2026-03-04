@@ -11,13 +11,13 @@ class ProductPage(BasePage):
 
     def go_product(self, ss_func=None, reporter=None):
         self.wait_for_home()
-        self.click(self.PRODUCT_TAB, "Move_To_Product_Tab")
+        self.click(self.PRODUCT_TAB, "MoveToProductTab")
         # 탭 전환 후 상품 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
             lambda d: d.find_elements(AppiumBy.XPATH, self.PRODUCT_TAB + "[@selected='true']")
         )
         if ss_func:
-            shot = ss_func("ProductTab_Entry")
+            shot = ss_func("S7_1_ProductTabEntry")
             if reporter:
                 reporter.step("상품 탭 진입", "PASSED", shot)
 
@@ -30,13 +30,13 @@ class ProductPage(BasePage):
         # 2️⃣ "보닥 회원만을 위한 추천 상품" 타이틀 노출 확인
         try:
             self.wait_for_element(self.TARGET_XPATH, timeout=7)
-            shot = ss_func("S5_2_Elem_Recommend_Title") if ss_func else None
+            shot = ss_func("S7_2_ElemRecommendTitle") if ss_func else None
             if reporter:
                 reporter.step(f"'{self.TARGET_TEXT}' 타이틀 노출 확인", "PASSED", shot)
             print(f"[OK] 타이틀 확인: {self.TARGET_TEXT}")
 
         except TimeoutException:
-            shot = ss_func("S5_2_FAIL_Recommend_Title") if ss_func else None
+            shot = ss_func("S7_2_FAIL_RecommendTitle") if ss_func else None
             if reporter:
                 reporter.step(f"'{self.TARGET_TEXT}' 타이틀 노출 확인 실패", "FAILED", shot)
             raise AssertionError(f"타이틀을 찾을 수 없습니다: '{self.TARGET_TEXT}'")

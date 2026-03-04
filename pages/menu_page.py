@@ -72,11 +72,11 @@ class MenuPage(BasePage):
                 if reporter:
                     reporter.step(f"섹션 타이틀 노출 확인: {kor_name}", "PASSED")
                 if ss_func:
-                    shot = ss_func(f"S8_Section_{eng_id}")
+                    shot = ss_func(f"S10_Section{eng_id}")
                     if reporter:
                         reporter.step(f"스크린샷: {kor_name}", "PASSED", shot)
             except TimeoutException:
-                shot = ss_func(f"S8_FAIL_Section_{eng_id}") if ss_func else None
+                shot = ss_func(f"S10_FAIL_Section{eng_id}") if ss_func else None
                 if reporter:
                     reporter.step(f"섹션 타이틀 미발견: {kor_name}", "FAILED", shot)
                 raise AssertionError(

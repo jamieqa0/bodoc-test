@@ -20,13 +20,13 @@ class RewardPage(BasePage):
 
     def go_reward(self, ss_func=None, reporter=None):
         self.wait_for_home()
-        self.click(self.REWARD_ICON, "Move_To_Reward_Tab")
+        self.click(self.REWARD_ICON, "MoveToRewardTab")
         # 탭 전환 후 보상 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
             lambda d: d.find_elements(AppiumBy.XPATH, self.REWARD_TAB + "[@selected='true']")
         )
         if ss_func:
-            shot = ss_func("RewardTab_Entry")
+            shot = ss_func("S9_1_RewardTabEntry")
             if reporter:
                 reporter.step("보상 탭 진입 확인", "PASSED", shot)
 
@@ -39,13 +39,13 @@ class RewardPage(BasePage):
         # 2️⃣ 해당 타이틀 영역 노출 확인
         try:
             self.wait_for_element(self.TARGET_XPATH, timeout=7)
-            shot = ss_func("S7_2_Elem_Reward_Case") if ss_func else None
+            shot = ss_func("S9_2_ElemRewardCase") if ss_func else None
             if reporter:
                 reporter.step(f"'{self.TARGET_TEXT}' 노출 확인", "PASSED", shot)
             print(f"[OK] 타이틀 확인: {self.TARGET_TEXT}")
 
         except TimeoutException:
-            shot = ss_func("S7_2_FAIL_Reward_Case") if ss_func else None
+            shot = ss_func("S9_2_FAIL_RewardCase") if ss_func else None
             if reporter:
                 reporter.step(f"'{self.TARGET_TEXT}' 노출 확인 실패", "FAILED", shot)
             raise AssertionError(f"타이틀을 찾을 수 없습니다: '{self.TARGET_TEXT}'")

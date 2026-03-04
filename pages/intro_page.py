@@ -155,4 +155,21 @@ class IntroPage(BasePage):
             print(f"[OK] 권한 팝업 처리 완료: {handled}")
         else:
             print("[INFO] 권한 팝업 미노출 — 이미 허용됐거나 최초 실행이 아님")
+
+        # Android 버전별로 팝업 노출 순서가 다를 수 있다.
+        # (예: Android 8은 시스템 알림 허용 → 앱 알림 안내 순으로 뜸)
+        # 잔여 '허용' / '확인' 버튼을 최대 4회 추가 처리한다.
+        for _ in range(4):
+            dismissed = self.dismiss_any_permission_popup()  # '허용' 처리
+            if dismissed:
+                print("[OK] 잔여 권한 다이얼로그 추가 처리 (허용)")
+                continue
+            confirmed = self._try_click(
+                self.NOTIF_CONFIRM, "잔여 알림 안내 팝업 처리 (확인)", timeout=2,
+            )
+            if confirmed:
+                print("[OK] 잔여 알림 안내 팝업 추가 처리 (확인)")
+                continue
+            break
+
         return results

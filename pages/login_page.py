@@ -76,7 +76,7 @@ class LoginPage(BasePage):
     def start_kakao_login(self):
         """권한 팝업 처리 후 '카카오로 시작하기' 버튼 클릭."""
         self.dismiss_any_permission_popup()
-        self.click(self.KAKAO_START_BUTTON, "S2_Kakao_Start_Click")
+        self.click(self.KAKAO_START_BUTTON, "S3_KakaoStartClick")
 
     # ════════════════════════════════════════════════════════════
     # Kakao OAuth 화면 (NATIVE 컨텍스트 — Chrome Custom Tab)
@@ -108,11 +108,11 @@ class LoginPage(BasePage):
         """
         try:
             self.wait_for_element(self.KAKAO_CONTINUE_NATIVE, timeout=5)
-            self.click(self.KAKAO_CONTINUE_NATIVE, "S2_Kakao_Continue_Click")
+            self.click(self.KAKAO_CONTINUE_NATIVE, "S3_KakaoContinueClick")
             print("[OK] '계속하기' 버튼 클릭 (NATIVE)")
         except Exception:
             print("[WARN] '계속하기' 버튼 미발견 — 좌표 폴백")
-            self.tap_coordinate(0.5, 0.66, "S2_Kakao_Continue_Tap")
+            self.tap_coordinate(0.5, 0.66, "S3_KakaoContinueTap")
 
     def select_first_kakao_account(self):
         """Kakao OAuth 화면에서 첫 번째 계정을 선택한다.
@@ -133,7 +133,7 @@ class LoginPage(BasePage):
 
         try:
             self.wait_for_element(self.KAKAO_FIRST_ACCOUNT_NATIVE, timeout=5)
-            self.click(self.KAKAO_FIRST_ACCOUNT_NATIVE, "S2_Kakao_Account_Click")
+            self.click(self.KAKAO_FIRST_ACCOUNT_NATIVE, "S3_KakaoAccountClick")
             print("[OK] 첫 번째 카카오 계정 선택 (NATIVE)")
         except Exception:
             # 대기 중 로그인이 완료됐을 수 있으므로 홈 화면 재확인
@@ -144,7 +144,7 @@ class LoginPage(BasePage):
             except Exception:
                 pass
             print("[WARN] 계정 목록 미발견 — 좌표 폴백")
-            self.tap_coordinate(0.5, 0.35, "S2_Kakao_Account_Tap")
+            self.tap_coordinate(0.5, 0.35, "S3_KakaoAccountTap")
 
     # ════════════════════════════════════════════════════════════
     # 홈 화면 검증
@@ -207,7 +207,7 @@ class LoginPage(BasePage):
     def verify_login_screen_visible(self):
         element = self.wait_for_element(self.KAKAO_START_BUTTON)
         if self.ss:
-            self.ss("S2_LoginScreen_Visible")
+            self.ss("S3_LoginScreenVisible")
         assert element.is_displayed()
 
     def verify_logged_in(self):

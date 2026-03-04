@@ -13,13 +13,13 @@ class HealthPage(BasePage):
 
     def go_health(self, ss_func=None, reporter=None):
         self.wait_for_home()
-        self.click(self.HEALTH_ICON, "Move_To_Health_Tab")
+        self.click(self.HEALTH_ICON, "MoveToHealthTab")
         # 탭 전환 후 건강 탭이 선택(활성화)될 때까지 대기
         WebDriverWait(self.driver, 10).until(
             lambda d: d.find_elements(AppiumBy.XPATH, self.HEALTH_TAB + "[@selected='true']")
         )
         if ss_func:
-            shot = ss_func("HealthTab_Entry")
+            shot = ss_func("S8_1_HealthTabEntry")
             if reporter:
                 reporter.step("건강 탭 진입 확인", "PASSED", shot)
 
@@ -32,13 +32,13 @@ class HealthPage(BasePage):
         # 2️⃣ "건강 기록" 타이틀 노출 확인
         try:
             self.wait_for_element(self.TARGET_XPATH, timeout=7)
-            shot = ss_func("S6_2_Elem_Health_Record") if ss_func else None
+            shot = ss_func("S8_2_ElemHealthRecord") if ss_func else None
             if reporter:
                 reporter.step(f"'{self.TARGET_TEXT}' 노출 확인", "PASSED", shot)
             print(f"[OK] 타이틀 확인: {self.TARGET_TEXT}")
 
         except TimeoutException:
-            shot = ss_func("S6_2_FAIL_Health_Record") if ss_func else None
+            shot = ss_func("S8_2_FAIL_HealthRecord") if ss_func else None
             if reporter:
                 reporter.step(f"'{self.TARGET_TEXT}' 노출 확인 실패", "FAILED", shot)
             raise AssertionError(f"타이틀을 찾을 수 없습니다: '{self.TARGET_TEXT}'")

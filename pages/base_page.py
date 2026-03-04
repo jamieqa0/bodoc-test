@@ -176,6 +176,7 @@ class BasePage:
                 )
                 el.click()
                 print(f"[OK] 권한 팝업 처리: {xpath}")
-                return
+                return True
             except Exception:
                 pass
+        return False
