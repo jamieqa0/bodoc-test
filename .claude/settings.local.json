@@ -20,7 +20,8 @@
       "Bash(chcp:*)",
       "Bash(C:/Users/Jamie-I/AppData/Local/Programs/Python/Python312/python.exe:*)",
       "Bash(\"/c/Users/Jamie-I/Downloads/platform-tools/adb.exe\" devices:*)",
-      "Bash(\"/c/Users/Jamie-I/Downloads/platform-tools/adb.exe\":*)"
+      "Bash(\"/c/Users/Jamie-I/Downloads/platform-tools/adb.exe\":*)",
+      "Skill(claude-hud:setup)"
     ]
   }
 }
